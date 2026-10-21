@@ -187,7 +187,7 @@ export const JobsRadarView: React.FC = () => {
               <Sparkles className="w-3.5 h-3.5 text-amber-400" />
               مهارت‌های تحت پایش برای تطابق:
             </span>
-            <span className="text-[11px] text-slate-400">سابقه: بیش از ۴ سال</span>
+            <span className="text-[11px] text-slate-400">سابقه: ۵ سال تخصصی</span>
           </div>
           <div className="flex flex-wrap gap-1.5">
             {[

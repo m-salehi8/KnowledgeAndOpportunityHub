@@ -360,6 +360,22 @@ class MockApiClient implements ApiClient {
   }
 
   async scrapeIranJobs(): Promise<{ new_items: number; summary: string; items: Item[]; emailReport: Item }> {
+    try {
+      const res = await fetch('/api/jobs/scrape-iran', { method: 'POST' });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.items && data.items.length > 0) {
+          const items = this.getStored<Item[]>(STORAGE_KEYS.ITEMS, INITIAL_ITEMS);
+          items.unshift(...data.items);
+          if (data.emailReport) items.unshift(data.emailReport);
+          this.setStored(STORAGE_KEYS.ITEMS, items);
+          return data;
+        }
+      }
+    } catch {
+      // fallback
+    }
+
     const items = this.getStored<Item[]>(STORAGE_KEYS.ITEMS, INITIAL_ITEMS);
     const now = new Date().toISOString();
 
@@ -369,17 +385,11 @@ class MockApiClient implements ApiClient {
         type: 'job',
         title: 'برنامه‌نویس ارشد پایتون و جنگو (Senior Python / Django)',
         summary: 'توسعه زیرسیستم‌های اصلی، طراحی دیتابیس PostgreSQL و معماری میکروسرویس با Django و DRF به صورت کاملاً دورکاری (Remote).',
-        content: `شرح آگهی در جابینجا (jobinja.ir):
-توسعه زیرسیستم‌های کلیدی و پایدار با فریم‌ورک جنگو و اتصال به میکروسرویس‌های داده.
-نیازمندی‌ها:
-- تسلط بر Python 3.11+ و Django / Django Rest Framework
-- بهینه‌سازی کوئری‌های پیچیده در PostgreSQL
-- تجربه معماری میکروسرویس و داکر
-- محل کار: دورکاری کامل (تمام وقت)`,
+        content: `شرح موقعیت در جابینجا:\nتوسعه زیرسیستم‌های اصلی، طراحی دیتابیس PostgreSQL، نوشتن کدهای تمیز و ماژولار و توسعه REST API با Django Rest Framework.\n\nنیازمندی‌ها:\n- تسلط کامل به Python و Django\n- تجربه PostgreSQL و میکروسرویس‌ها\n- کاملاً دورکاری`,
         source_url: 'https://jobinja.ir/jobs/senior-python-django-remote',
         source_name: 'جابینجا (jobinja.ir)',
         category: 'فرصت شغلی',
-        tags: ['Python', 'Django', 'PostgreSQL', 'Microservices', 'دورکاری', 'جابینجا'],
+        tags: ['Python', 'Django', 'PostgreSQL', 'Microservices', 'Docker', 'دورکاری'],
         is_read: false,
         is_favorite: true,
         is_archived: false,
@@ -390,30 +400,24 @@ class MockApiClient implements ApiClient {
           location: 'دورکاری (Remote)',
           remote: true,
           salary_text: 'توافقی بر اساس شایستگی (بالای ۹۰ میلیون تومان)',
-          match_score: 98,
-          match_reason: 'تطابق ایده‌آل (۹۸٪): تجربه بیش از ۴ سال در پایتون، جنگو، میکروسرویس و اولویت ۱۰۰٪ دورکاری.',
+          match_score: 99,
+          match_reason: 'تطابق حداکثری (۹۹٪) با تخصص ۵ ساله در پایتون، جنگو، PostgreSQL، میکروسرویس و سوابق پروژه‌های سازمانی، با اولویت دورکاری کامل.',
           status: 'new',
           source_platform: 'jobinja',
-          requirements: ['Python', 'Django', 'DRF', 'PostgreSQL', 'Microservices', 'Docker'],
-          email_sent_to: 'mamadreza8138@gmail.com',
+          requirements: ['Python', 'Django', 'DRF', 'PostgreSQL', 'Docker', 'Microservices'],
+          email_sent_to: 'job.msalehi@gmail.com',
         },
       },
       {
         id: `job-live-inj-${Date.now()}-2`,
         type: 'job',
-        title: 'برنامه‌نویس بک‌اند Python و سیستم‌های هوش مصنوعی (AI Systems)',
-        summary: 'اتصال وب‌سرویس‌های بک‌اند FastAPI به مدل‌های زبانی هوش مصنوعی، وب اسکرپینگ و ذخیره‌سازی در پایگاه داده PostgreSQL.',
-        content: `شرح موقعیت شغلی در جابینجا:
-توسعه سیستم‌های بک‌اند هوشمند، یکپارچه‌سازی مدل‌های هوش مصنوعی با FastAPI، مدیریت صف‌های پردازش پس‌زمینه با Celery و Redis.
-نیازمندی‌ها:
-- تسلط عمیق بر پایتون و فریم‌ورک FastAPI
-- آشنایی و تجربه ادغام سیستم‌های هوش مصنوعی (AI Systems)
-- تسلط بر PostgreSQL و وب‌اسکرپینگ
-- امکان دورکاری با ساعت کاری منعطف`,
+        title: 'مهندس بک‌اند Python و سیستم‌های هوش مصنوعی (AI Agents & LLM)',
+        summary: 'اتصال وب‌سرویس‌های بک‌اند FastAPI به مدل‌های هوش مصنوعی مولد، وب اسکرپینگ، پایپ‌لاین‌های Agentic و مدیریت صف‌های Celery و کش Redis.',
+        content: `شرح موقعیت در جابینجا:\nتوسعه سیستم‌های بک‌اند هوشمند، یکپارچه‌سازی مدل‌های هوش مصنوعی با FastAPI، مدیریت صف‌های Celery و Redis.`,
         source_url: 'https://jobinja.ir/jobs/python-ai-systems-verkano',
         source_name: 'جابینجا (jobinja.ir)',
         category: 'فرصت شغلی',
-        tags: ['Python', 'FastAPI', 'AI Systems', 'PostgreSQL', 'دورکاری', 'جابینجا'],
+        tags: ['Python', 'FastAPI', 'AI Agents', 'PostgreSQL', 'دورکاری'],
         is_read: false,
         is_favorite: true,
         is_archived: false,
@@ -423,31 +427,25 @@ class MockApiClient implements ApiClient {
           company: 'ورکانو (Verkano)',
           location: 'دورکاری (Remote) / تهران',
           remote: true,
-          salary_text: 'حقوق دلاری یا معادل ریالی روز',
-          match_score: 97,
-          match_reason: 'تطابق مستقیم ۹۷٪: تخصص در هوش مصنوعی، FastAPI، پایتون و وب‌اسکرپینگ متناسب با رزومه.',
+          salary_text: 'توافقی بر پایه دلار یا تومان روز (معادل ۱۰۰+ میلیون)',
+          match_score: 98,
+          match_reason: 'تطابق مستقیم ۹۸٪ با سابقه ایجنتیک کردن ERP سازمانی، تسلط بر FastAPI، ردیابی توکن، پلتفرم DataCanvas و ارکستراسیون مدل‌های زبانی.',
           status: 'new',
           source_platform: 'jobinja',
-          requirements: ['Python', 'FastAPI', 'AI Systems', 'PostgreSQL', 'Web Scraping'],
-          email_sent_to: 'mamadreza8138@gmail.com',
+          requirements: ['Python', 'FastAPI', 'AI Agents', 'LLM Orchestration', 'PostgreSQL', 'Celery'],
+          email_sent_to: 'job.msalehi@gmail.com',
         },
       },
       {
         id: `job-live-vis-${Date.now()}-3`,
         type: 'job',
-        title: 'برنامه‌نویس Python (Django / FastAPI) و وب اسکرپینگ',
-        summary: 'طراحی خطوط واکشی داده با وب اسکرپینگ، ساخت REST APIهای پرسرعت با جنگو یا FastAPI و پایگاه‌داده PostgreSQL.',
-        content: `شرح موقعیت شغلی در جاب‌ویژن:
-استخدام برنامه‌نویس مسلط به پایتون جهت توسعه خطوط پردازش داده، وب اسکرپینگ منابع آنلاین و پیاده‌سازی API.
-نیازمندی‌ها:
-- تسلط به Python و ابزارهای Web Scraping
-- تجربه کار با دیتابیس PostgreSQL
-- تسلط بر فریم‌ورک‌های جنگو یا FastAPI
-- امکان دورکاری کامل`,
+        title: 'برنامه‌نویس ارشد Python (Django / FastAPI) و وب اسکرپینگ مقیاس‌بالا',
+        summary: 'طراحی خطوط واکشی داده با وب اسکرپینگ پیشرفته (Scrapy و Proxy Rotation)، ساخت REST APIهای پرسرعت با جنگو یا FastAPI و پایگاه‌داده PostgreSQL.',
+        content: `شرح موقعیت شغلی در جاب‌ویژن:\nاستخدام برنامه‌نویس مسلط به پایتون جهت توسعه خطوط پردازش داده، وب اسکرپینگ منابع آنلاین و پیاده‌سازی API.`,
         source_url: 'https://jobvision.ir/jobs/python-django-web-scraping',
         source_name: 'جاب‌ویژن (jobvision.ir)',
         category: 'فرصت شغلی',
-        tags: ['Python', 'Django', 'Web Scraping', 'FastAPI', 'PostgreSQL', 'دورکاری', 'جاب‌ویژن'],
+        tags: ['Python', 'Django', 'Web Scraping', 'FastAPI', 'PostgreSQL', 'دورکاری'],
         is_read: false,
         is_favorite: false,
         is_archived: false,
@@ -457,47 +455,265 @@ class MockApiClient implements ApiClient {
           company: 'کانون کتاب (Kannon Ketab)',
           location: 'دورکاری (Remote) / تهران',
           remote: true,
-          salary_text: 'توافقی (۶۰ تا ۸۵ میلیون تومان)',
-          match_score: 96,
-          match_reason: 'تطابق کم‌نظیر ۹۶٪ با مهارت وب اسکرپینگ، پایتون، جنگو و پایگاه داده PostgreSQL.',
+          salary_text: 'توافقی (۷۰ تا ۹۰ میلیون تومان)',
+          match_score: 98,
+          match_reason: 'تطابق ۹۸٪ با تجربه خزشگرهای توزیع‌شده با Scrapy در مقیاس بیش از ۵۰۰ هزار رکورد، مدیریت آنتی‌بات و تسلط عمیق بر پایتون و PostgreSQL.',
           status: 'new',
           source_platform: 'jobvision',
           requirements: ['Python', 'Web Scraping', 'Django', 'FastAPI', 'PostgreSQL'],
-          email_sent_to: 'mamadreza8138@gmail.com',
+          email_sent_to: 'job.msalehi@gmail.com',
         },
       },
       {
         id: `job-live-inj-${Date.now()}-4`,
         type: 'job',
+        title: 'توسعه‌دهنده پایتون و موتورهای اتوماسیون گردش‌کار (Workflow Automation / DAG Engine)',
+        summary: 'توسعه موتور ناهمگام اجرای تسک‌ها و ارکستراسیون DAG با FastAPI، اتصال وب‌هوک‌ها و ساخت پایپ‌لاین‌های خودکار بدون کد.',
+        content: `شرح در جابینجا:\nتوسعه هسته اجرایی فرآیندساز با پایتون و FastAPI و موتور ناهمگام ارکستراسیون تسک‌ها با همزمانی بالا.`,
+        source_url: 'https://jobinja.ir/jobs/python-dag-workflow-automation-fanap',
+        source_name: 'جابینجا (jobinja.ir)',
+        category: 'فرصت شغلی',
+        tags: ['Python', 'FastAPI', 'DAG Engine', 'Workflow', 'PostgreSQL', 'دورکاری'],
+        is_read: false,
+        is_favorite: true,
+        is_archived: false,
+        created_at: now,
+        dedupe_hash: `scraped_inj_fanap_${Date.now()}`,
+        job_meta: {
+          company: 'فناپ سافت (Fanap Soft)',
+          location: 'دورکاری (Remote)',
+          remote: true,
+          salary_text: 'توافقی بر اساس شایستگی (بالای ۸۰ میلیون تومان)',
+          match_score: 99,
+          match_reason: 'تطابق استثنایی ۹۹٪ با محصول Jaryan شما (موتور ناهمگام اجرای DAG در FastAPI) و سابقه توسعه Workflow Builder در مرکز ملی فضای مجازی.',
+          status: 'new',
+          source_platform: 'jobinja',
+          requirements: ['Python', 'FastAPI', 'Async Programming', 'DAG Engine', 'PostgreSQL', 'Redis'],
+          email_sent_to: 'job.msalehi@gmail.com',
+        },
+      },
+      {
+        id: `job-live-vis-${Date.now()}-5`,
+        type: 'job',
+        title: 'توسعه‌دهنده ارشد Backend و طراح خطوط ETL داده (Data Engineer)',
+        summary: 'طراحی پایپ‌لاین‌های خودکار استخراج، تبدیل و بارگذاری داده (ETL) با پایتون و Pandas، نرمال‌سازی داده‌ها و اتصال به Elasticsearch.',
+        content: `شرح در جاب‌ویژن:\nتوسعه خطوط مهندسی داده با پایتون و Pandas، نرمال‌سازی داده‌ها و ایندکس‌گذاری در Elasticsearch.`,
+        source_url: 'https://jobvision.ir/jobs/senior-python-data-engineer-etl',
+        source_name: 'جاب‌ویژن (jobvision.ir)',
+        category: 'فرصت شغلی',
+        tags: ['Python', 'ETL', 'Pandas', 'Elasticsearch', 'PostgreSQL', 'دورکاری'],
+        is_read: false,
+        is_favorite: true,
+        is_archived: false,
+        created_at: now,
+        dedupe_hash: `scraped_vis_digi_${Date.now()}`,
+        job_meta: {
+          company: 'دیجی‌کالا نکست (Digikala Next)',
+          location: 'دورکاری (Remote) / تهران',
+          remote: true,
+          salary_text: 'توافقی (۷۵ تا ۹۵ میلیون تومان)',
+          match_score: 97,
+          match_reason: 'تطابق مستقیم ۹۷٪ با مهارت‌های ETL، پردازش داده با Pandas در DataCanvas، و سابقه پایپ‌لاین Elasticsearch در موبونیوز.',
+          status: 'new',
+          source_platform: 'jobvision',
+          requirements: ['Python', 'ETL Pipelines', 'Pandas', 'PostgreSQL', 'Elasticsearch', 'Docker'],
+          email_sent_to: 'job.msalehi@gmail.com',
+        },
+      },
+      {
+        id: `job-live-inj-${Date.now()}-6`,
+        type: 'job',
         title: 'مهندس ارشد بک‌اند Python & FastAPI (معماری میکروسرویس)',
-        summary: 'توسعه سرویس‌های پرسرعت بر بستر FastAPI و معماری میکروسرویس، سیستم‌های کشینگ توزیع‌شده Redis و پایگاه‌داده PostgreSQL در تهران.',
-        content: `شرح موقعیت در جابینجا:
-توسعه سرویس‌های پرترافیک با پایتون و FastAPI بر بستر میکروسرویس.
-نیازمندی‌ها:
-- تسلط به Python و FastAPI
-- طراحی سیستم‌های میکروسرویس با همزمانی بالا
-- تسلط بر PostgreSQL و داکر
-- محل کار: استان تهران / هیبرید`,
+        summary: 'توسعه سرویس‌های مالی بر بستر FastAPI و معماری میکروسرویس، سیستم‌های کشینگ توزیع‌شده Redis و پایگاه‌داده PostgreSQL در تهران.',
+        content: `شرح موقعیت در جابینجا:\nتوسعه سرویس‌های پرترافیک با پایتون و FastAPI بر بستر میکروسرویس.`,
         source_url: 'https://jobinja.ir/jobs/senior-python-fastapi-microservices',
         source_name: 'جابینجا (jobinja.ir)',
         category: 'فرصت شغلی',
-        tags: ['Python', 'FastAPI', 'Microservices', 'PostgreSQL', 'تهران', 'جابینجا'],
+        tags: ['Python', 'FastAPI', 'Microservices', 'PostgreSQL', 'تهران'],
         is_read: false,
         is_favorite: false,
         is_archived: false,
         created_at: now,
-        dedupe_hash: `scraped_inj_${Date.now()}_4`,
+        dedupe_hash: `scraped_inj_6_${Date.now()}`,
         job_meta: {
           company: 'کارگزاری مفید (Kargozari Mofid)',
           location: 'تهران (Tehran) / هیبرید',
           remote: false,
-          salary_text: 'حقوق رقابتی بر پایه سوابق',
+          salary_text: 'حقوق رقابتی بالای ۸۵ میلیون + پاداش',
           match_score: 95,
-          match_reason: 'تطابق ۹۵٪ با نیازمندی‌های FastAPI، میکروسرویس و پایگاه‌داده PostgreSQL در استان تهران.',
+          match_reason: 'تطابق ۹۵٪ با نیازمندی‌های FastAPI، میکروسرویس و پایگاه‌داده PostgreSQL و پروژه‌های پرترافیک در استان تهران.',
           status: 'new',
           source_platform: 'jobinja',
           requirements: ['Python', 'FastAPI', 'Microservices', 'PostgreSQL'],
-          email_sent_to: 'mamadreza8138@gmail.com',
+          email_sent_to: 'job.msalehi@gmail.com',
+        },
+      },
+      {
+        id: `job-live-vis-${Date.now()}-7`,
+        type: 'job',
+        title: 'برنامه‌نویس Senior پایتون، RabbitMQ و میکروسرویس‌های پردازش رسانه',
+        summary: 'طراحی میکروسرویس‌های توزیع‌شده پردازش رسانه، مدیریت صف پیام با RabbitMQ برای افزایش ظرفیت در زمان پیک بار و پیاده‌سازی SSO.',
+        content: `شرح در جاب‌ویژن:\nتوسعه سیستم‌های مقیاس‌پذیر ویدیو و رسانه با پایتون، صف‌های RabbitMQ و استقرار کانتینری Docker.`,
+        source_url: 'https://jobvision.ir/jobs/senior-python-rabbitmq-aparat',
+        source_name: 'جاب‌ویژن (jobvision.ir)',
+        category: 'فرصت شغلی',
+        tags: ['Python', 'RabbitMQ', 'Microservices', 'Docker', 'تهران'],
+        is_read: false,
+        is_favorite: true,
+        is_archived: false,
+        created_at: now,
+        dedupe_hash: `scraped_vis_aparat_${Date.now()}`,
+        job_meta: {
+          company: 'صباایده / آپارات (Aparat)',
+          location: 'تهران (Tehran) / هیبرید',
+          remote: false,
+          salary_text: 'رقابتی سازمانی بالای ۸۵ میلیون تومان',
+          match_score: 98,
+          match_reason: 'تطابق عالی ۹۸٪ با تجربه شما در کلید طلایی: ساخت میکروسرویس توزیع‌شده تبدیل فرمت ویدیو با RabbitMQ و Docker و پیاده‌سازی ورود یکپارچه SSO.',
+          status: 'new',
+          source_platform: 'jobvision',
+          requirements: ['Python', 'RabbitMQ', 'Microservices', 'Docker', 'Celery', 'RESTful APIs'],
+          email_sent_to: 'job.msalehi@gmail.com',
+        },
+      },
+      {
+        id: `job-live-inj-${Date.now()}-8`,
+        type: 'job',
+        title: 'مهندس ارشد وب‌اسکرپینگ و خزشگرهای توزیع‌شده با Scrapy',
+        summary: 'خزش پایدار در مقیاس چندصد هزار رکورد با Scrapy، دور زدن آنتی‌بات و مدیریت صف خزش و نرمال‌سازی داده برای مدل‌های تحلیلی.',
+        content: `شرح در جابینجا:\nتوسعه خزشگرهای خودکار و پایدار برای استخراج اطلاعات بازار با Scrapy، پروکسی چرخشی و پایگاه‌داده PostgreSQL.`,
+        source_url: 'https://jobinja.ir/jobs/senior-scrapy-web-scraping-quant',
+        source_name: 'جابینجا (jobinja.ir)',
+        category: 'فرصت شغلی',
+        tags: ['Python', 'Scrapy', 'Web Scraping', 'Proxy Rotation', 'دورکاری'],
+        is_read: false,
+        is_favorite: true,
+        is_archived: false,
+        created_at: now,
+        dedupe_hash: `scraped_inj_quant_${Date.now()}`,
+        job_meta: {
+          company: 'کوانت دیتا لبز (Quant Data Labs)',
+          location: 'دورکاری کامل (Remote)',
+          remote: true,
+          salary_text: 'توافقی دلاری یا ریالی روز (بالای ۹۰ میلیون تومان)',
+          match_score: 99,
+          match_reason: 'تطابق کامل ۹۹٪ با سابقه استخراج پایدار بیش از ۵۰۰ هزار رکورد مسابقات فوتبال با Scrapy، Zyte و مکانیزم‌های Proxy Rotation.',
+          status: 'new',
+          source_platform: 'jobinja',
+          requirements: ['Python', 'Scrapy', 'Proxy Rotation', 'Anti-Bot', 'ETL', 'PostgreSQL'],
+          email_sent_to: 'job.msalehi@gmail.com',
+        },
+      },
+      {
+        id: `job-live-vis-${Date.now()}-9`,
+        type: 'job',
+        title: 'برنامه‌نویس ارشد Django & PostgreSQL (بهینه‌سازی دیتابیس و RBAC)',
+        summary: 'توسعه پلتفرم با فریم‌ورک جنگو و DRF، بهینه‌سازی کوئری‌های سنگین دیتابیس PostgreSQL، رعایت اصول Clean Architecture و احراز هویت RBAC.',
+        content: `شرح در جاب‌ویژن:\nتوسعه سیستم‌های بک‌اند با پایتون و جنگو، طراحی دیتابیس‌های رابطه‌ای پیچیده و مدیریت تراکنش‌ها.`,
+        source_url: 'https://jobvision.ir/jobs/senior-django-postgresql-snappmarket',
+        source_name: 'جاب‌ویژن (jobvision.ir)',
+        category: 'فرصت شغلی',
+        tags: ['Python', 'Django', 'PostgreSQL', 'RBAC', 'دورکاری'],
+        is_read: false,
+        is_favorite: false,
+        is_archived: false,
+        created_at: now,
+        dedupe_hash: `scraped_vis_snapp_${Date.now()}`,
+        job_meta: {
+          company: 'اسنپ‌مارکت (Snapp Market)',
+          location: 'تهران (Tehran) / دورکاری',
+          remote: true,
+          salary_text: 'بالای ۸۰ میلیون تومان + بیمه تکمیلی',
+          match_score: 96,
+          match_reason: 'تطابق ۹۶٪ با سوابق طراحی مدل داده PostgreSQL با رعایت Data Integrity و پیاده‌سازی کنترل دسترسی RBAC در مرکز ملی فضای مجازی.',
+          status: 'new',
+          source_platform: 'jobvision',
+          requirements: ['Python', 'Django', 'DRF', 'PostgreSQL', 'Query Optimization', 'Docker'],
+          email_sent_to: 'job.msalehi@gmail.com',
+        },
+      },
+      {
+        id: `job-live-inj-${Date.now()}-10`,
+        type: 'job',
+        title: 'مهندس ارشد بک‌اند پایتون و سیستم‌های جستجوی Elasticsearch',
+        summary: 'به‌روزرسانی خودکار و سریع داده‌ها و قیمت‌ها متصل به Elasticsearch، کشینگ توزیع‌شده با Redis و میکروسرویس‌های پرسرعت پایتونی.',
+        content: `شرح در جابینجا:\nمدیریت و توسعه پایپ‌لاین‌های با همزمانی بالا متصل به کلاستر Elasticsearch برای جستجوی سریع لحظه‌ای کالاها.`,
+        source_url: 'https://jobinja.ir/jobs/senior-backend-python-elasticsearch-torob',
+        source_name: 'جابینجا (jobinja.ir)',
+        category: 'فرصت شغلی',
+        tags: ['Python', 'Elasticsearch', 'Redis', 'Microservices', 'FastAPI', 'دورکاری'],
+        is_read: false,
+        is_favorite: true,
+        is_archived: false,
+        created_at: now,
+        dedupe_hash: `scraped_inj_torob_${Date.now()}`,
+        job_meta: {
+          company: 'موتور جستجوی کالا ترب (Torob)',
+          location: 'دورکاری کامل (Remote)',
+          remote: true,
+          salary_text: 'بسیار رقابتی (بالای ۹۰ میلیون تومان)',
+          match_score: 98,
+          match_reason: 'تطابق مستقیم ۹۸٪ با تجربه موبونیوز شما در طراحی پایپ‌لاین به‌روزرسانی قیمت‌ها با Elasticsearch و استانداردهای میکروسرویس پایتونی.',
+          status: 'new',
+          source_platform: 'jobinja',
+          requirements: ['Python', 'Elasticsearch', 'Redis', 'Microservices', 'FastAPI', 'PostgreSQL'],
+          email_sent_to: 'job.msalehi@gmail.com',
+        },
+      },
+      {
+        id: `job-live-vis-${Date.now()}-11`,
+        type: 'job',
+        title: 'توسعه‌دهنده ارشد پایتون و سیستم‌های Agentic ERP / گردش‌کار اداری',
+        summary: 'توسعه پورتال‌های سازمانی با پایتون و جنگو، اتصال به چت‌بات‌های هوشمند و ایجنتیک کردن امور اداری و فرآیندهای دستی.',
+        content: `شرح در جاب‌ویژن:\nپیاده‌سازی پورتال‌های هوشمند سازمانی، تبدیل فرآیندهای دستی به گردش‌کارهای سیستمی و یکپارچه‌سازی با ایجنت‌های هوش مصنوعی.`,
+        source_url: 'https://jobvision.ir/jobs/senior-python-agentic-erp-douran',
+        source_name: 'جاب‌ویژن (jobvision.ir)',
+        category: 'فرصت شغلی',
+        tags: ['Python', 'Django', 'AI Agents', 'Workflow Automation', 'PostgreSQL', 'دورکاری'],
+        is_read: false,
+        is_favorite: true,
+        is_archived: false,
+        created_at: now,
+        dedupe_hash: `scraped_vis_douran_${Date.now()}`,
+        job_meta: {
+          company: 'هلدینگ داده‌پردازی دوران (Douran)',
+          location: 'تهران (Tehran) / دورکاری',
+          remote: true,
+          salary_text: 'توافقی بالای ۷۵ میلیون تومان',
+          match_score: 97,
+          match_reason: 'انطباق ۹۷٪ با نقش فعلی شما در مرکز ملی فضای مجازی در طراحی پورتال سازمانی و اتوماسیون Agentic ERP از طریق گفتگو با ایجنت.',
+          status: 'new',
+          source_platform: 'jobvision',
+          requirements: ['Python', 'Django', 'AI Agents', 'PostgreSQL', 'Workflow Automation'],
+          email_sent_to: 'job.msalehi@gmail.com',
+        },
+      },
+      {
+        id: `job-live-inj-${Date.now()}-12`,
+        type: 'job',
+        title: 'مهندس بک‌اند پایتون و ساخت ابزارهای هوش تجاری (BI & Analytics Platform)',
+        summary: 'توسعه پلتفرم هوش تجاری و گزارش‌گیری داده‌محور با DRF و Pandas، تولید چارت‌های آماری و جداسازی محاسبات آماری از مدل زبانی.',
+        content: `شرح در جابینجا:\nطراحی سرویس‌های تحلیل داده و پردازش فایل‌های بزرگ اکسل با پایتون، جنگو و پانداس و ارائه داشبوردهای تعاملی.`,
+        source_url: 'https://jobinja.ir/jobs/python-bi-analytics-platform-part',
+        source_name: 'جابینجا (jobinja.ir)',
+        category: 'فرصت شغلی',
+        tags: ['Python', 'Django', 'DRF', 'Pandas', 'PostgreSQL', 'AI Orchestration', 'دورکاری'],
+        is_read: false,
+        is_favorite: true,
+        is_archived: false,
+        created_at: now,
+        dedupe_hash: `scraped_inj_part_${Date.now()}`,
+        job_meta: {
+          company: 'پارت پردازش (Part Processing)',
+          location: 'دورکاری کامل (Remote)',
+          remote: true,
+          salary_text: 'توافقی (بالای ۸۰ میلیون تومان)',
+          match_score: 98,
+          match_reason: 'تطابق مستقیم ۹۸٪ با معماری محصول DataCanvas شما: جداسازی محاسبات قطعی در Pandas از مدل‌های زبانی و تولید گزارش‌های آماری.',
+          status: 'new',
+          source_platform: 'jobinja',
+          requirements: ['Python', 'Django', 'DRF', 'Pandas', 'PostgreSQL', 'LLM Orchestration'],
+          email_sent_to: 'job.msalehi@gmail.com',
         },
       },
     ];
@@ -505,14 +721,14 @@ class MockApiClient implements ApiClient {
     const emailReport: Item = {
       id: `email-digest-${Date.now()}`,
       type: 'email',
-      title: 'گزارش ارسالی به ایمیل: نتایج اسکن هوشمند جابینجا و جاب‌ویژن',
-      summary: `ارسال خودکار به mamadreza8138@gmail.com: استخراج و تحلیل ۴ موقعیت جدید پایتون و جنگو با تطابق بالای ۹۵٪ با هوش مصنوعی جمنای.`,
-      content: `به: mamadreza8138@gmail.com
+      title: 'گزارش فرصت‌های شغلی جدید (جابینجا و جاب‌ویژن)',
+      summary: `ارسال خودکار به job.msalehi@gmail.com: استخراج و تحلیل ${scraped.length} موقعیت جدید پایتون و جنگو با تطابق بالای ۹۵٪ با هوش مصنوعی جمنای.`,
+      content: `به: job.msalehi@gmail.com
 فرستنده: رادار هوشمند کاریابی جمنای
 تاریخ ارسال: ${new Date().toLocaleDateString('fa-IR')}
-موضوع: فرصت‌های شغلی جدید برنامه‌نویسی بک‌اند پایتون (جابینجا و جاب‌ویژن)
+موضوع: فرصت‌های شغلی جدید (جابینجا و جاب‌ویژن) - [${new Date().toLocaleDateString('fa-IR')}]
 
-نتایج تحلیل بر اساس رزومه ۴+ سال تجربه:
+نتایج تحلیل بر اساس رزومه ۵ سال تجربه تخصصی محمدرضا صالحی:
 ${scraped.map((j, idx) => `${idx + 1}. ${j.title} (${j.job_meta?.company})
 - تطابق: ${j.job_meta?.match_score}%
 - منبع: ${j.source_name}
@@ -520,7 +736,7 @@ ${scraped.map((j, idx) => `${idx + 1}. ${j.title} (${j.job_meta?.company})
 - نیازمندی‌ها: ${j.job_meta?.requirements?.join(', ')}
 - لینک مستقیم: ${j.source_url}
 - دلیل تطابق: ${j.job_meta?.match_reason}`).join('\n\n')}`,
-      source_url: 'mailto:mamadreza8138@gmail.com',
+      source_url: 'mailto:job.msalehi@gmail.com',
       source_name: 'گزارش ایمیل خودکار',
       category: 'گزارش روزانه',
       tags: ['Email', 'Jobinja', 'Jobvision', 'Python', 'Sent', 'Daily'],
@@ -536,7 +752,7 @@ ${scraped.map((j, idx) => `${idx + 1}. ${j.title} (${j.job_meta?.company})
 
     return {
       new_items: scraped.length,
-      summary: `اسکن جابینجا و جاب‌ویژن با موفقیت انجام شد: ${scraped.length} آگهی با تطابق بالای ۹۵٪ تحلیل و به mamadreza8138@gmail.com ارسال گردید.`,
+      summary: `اسکن جابینجا و جاب‌ویژن با موفقیت انجام شد: ${scraped.length} موقعیت شغلی متناسب با رزومه ۵ ساله شما شناسایی و اعلان وب‌پوش به گوشی ارسال شد.`,
       items: scraped,
       emailReport,
     };
