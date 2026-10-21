@@ -1,0 +1,24 @@
+version: '3.8'
+
+services:
+  hub-backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: knowledge_hub_backend
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment:
+      - DATABASE_URL=sqlite:////data/hub.db
+      - APP_TOKEN=hub_usr_sec_99384721
+      - NEWS_DIGEST_TIME=07:30
+      - JOB_RADAR_TIME=08:00
+      - MIN_JOB_SCORE_NOTIFY=80
+    env_file:
+      - .env
+    volumes:
+      - hub_data:/data
+
+volumes:
+  hub_data:

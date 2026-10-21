@@ -1,0 +1,8 @@
+{
+  "name": "Knowledge & Opportunity Hub",
+  "description": "Personal AI-powered knowledge and job opportunity hub collecting Telegram bookmarks, daily news digests, and scored job radar items.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

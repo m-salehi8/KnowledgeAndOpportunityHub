@@ -1,0 +1,75 @@
+@import "tailwindcss";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+@layer base {
+  :root {
+    --font-sans: 'Vazirmatn', 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    --font-mono: 'JetBrains Mono', monospace;
+  }
+
+  html {
+    font-family: var(--font-sans);
+    -webkit-tap-highlight-color: transparent;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-size-adjust: 100%;
+  }
+
+  html.dark {
+    color-scheme: dark;
+  }
+
+  html:not(.dark) {
+    color-scheme: light;
+  }
+
+  body {
+    touch-action: pan-x pan-y;
+    overflow-x: hidden;
+  }
+}
+
+/* iOS Safe Areas */
+.pb-safe {
+  padding-bottom: max(16px, env(safe-area-inset-bottom, 16px));
+}
+
+.pt-safe {
+  padding-top: max(12px, env(safe-area-inset-top, 12px));
+}
+
+.mb-safe {
+  margin-bottom: max(16px, env(safe-area-inset-bottom, 16px));
+}
+
+/* Glassmorphism */
+.glass-panel {
+  background: rgba(18, 18, 26, 0.78);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.dark .glass-surface {
+  background: rgba(18, 18, 26, 0.85);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-color: rgba(255, 255, 255, 0.08);
+}
+
+html:not(.dark) .glass-surface {
+  background: rgba(255, 255, 255, 0.88);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-color: rgba(0, 0, 0, 0.06);
+}
+
+/* iOS Touch Utilities */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
