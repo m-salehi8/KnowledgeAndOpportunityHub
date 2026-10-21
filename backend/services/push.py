@@ -36,7 +36,7 @@ def send_web_push(subscription: PushSubscription, payload: Dict[str, Any]) -> bo
         return False
 
 
-def broadcast_push(db: Session, title: str, body: str, url: str = "/") -> int:
+def broadcast_push(db: Session, title: str, body: str, url: str = "/", tab: str = "inbox") -> int:
     subscriptions = db.query(PushSubscription).all()
     if not subscriptions:
         logger.info("No active push subscriptions found.")
@@ -46,6 +46,7 @@ def broadcast_push(db: Session, title: str, body: str, url: str = "/") -> int:
         "title": title,
         "body": body,
         "url": url,
+        "tab": tab,
         "icon": "/pwa-192x192.png",
         "badge": "/pwa-192x192.png",
     }

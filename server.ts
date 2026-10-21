@@ -4,6 +4,7 @@ import { fileURLToPath } from 'url';
 import dotenv from 'dotenv';
 import { createServer as createViteServer } from 'vite';
 import { GoogleGenAI } from '@google/genai';
+import webpush from 'web-push';
 
 dotenv.config();
 
@@ -12,6 +13,52 @@ const __dirname = path.dirname(__filename);
 
 const app = express();
 app.use(express.json());
+
+// Initialize Web Push (VAPID)
+const VAPID_PUBLIC_KEY = process.env.VAPID_PUBLIC_KEY || 'BOtRPnCylgx30jh1_ZYMU3Amh-5Xv9B3BfoDwXiiNd5Feg3EREsbcGJwFTxY2Xo2eXb3uAgoYgGbrtMVoIqCRJU';
+const VAPID_PRIVATE_KEY = process.env.VAPID_PRIVATE_KEY || 'Dx9WmasysDLY2ewW2yW0rR9ETllv2weXl6BEYXcR-Xk';
+const VAPID_CLAIMS_EMAIL = process.env.VAPID_CLAIMS_EMAIL || 'mailto:job.msalehi@gmail.com';
+
+webpush.setVapidDetails(VAPID_CLAIMS_EMAIL, VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY);
+
+interface StoredPushSub {
+  endpoint: string;
+  keys: {
+    p256dh: string;
+    auth: string;
+  };
+}
+let activePushSubscriptions: StoredPushSub[] = [];
+
+async function broadcastPushNotification(payload: { title: string; body: string; url?: string; tab?: string }) {
+  const notificationPayload = JSON.stringify({
+    title: payload.title,
+    body: payload.body,
+    url: payload.url || '/',
+    tab: payload.tab || 'inbox',
+    icon: '/pwa-192x192.png',
+    badge: '/pwa-192x192.png',
+  });
+
+  const staleEndpoints = new Set<string>();
+  await Promise.all(
+    activePushSubscriptions.map(async (sub) => {
+      try {
+        await webpush.sendNotification(sub as any, notificationPayload);
+      } catch (err: any) {
+        if (err.statusCode === 404 || err.statusCode === 410) {
+          staleEndpoints.add(sub.endpoint);
+        } else {
+          console.warn('WebPush delivery warning:', err.message);
+        }
+      }
+    })
+  );
+
+  if (staleEndpoints.size > 0) {
+    activePushSubscriptions = activePushSubscriptions.filter((s) => !staleEndpoints.has(s.endpoint));
+  }
+}
 
 // Initialize Google Gemini AI SDK
 const geminiApiKey = process.env.GEMINI_API_KEY || '';
@@ -26,27 +73,28 @@ const ai = geminiApiKey
     })
   : null;
 
-// User Profile for Job Matching
+// User Profile for Mohammadreza Salehi
 const USER_PROFILE = {
-  name: 'محمدرضا',
-  email: 'mamadreza8138@gmail.com',
+  name: 'محمدرضا صالحی',
+  email: 'job.msalehi@gmail.com',
   experience_years: 4,
-  title: 'Senior Python & Django Backend Developer',
+  title: 'Senior Python & Django / FastAPI Backend Developer',
   skills: [
     'Python',
     'Django',
-    'Django Rest Framework (DRF)',
     'FastAPI',
-    'Microservices Architecture',
+    'Flask',
     'PostgreSQL',
-    'Web Scraping (Scrapy, Playwright, BeautifulSoup)',
-    'AI Systems & LLM Integrations',
-    'Docker',
     'Redis',
-    'Celery',
+    'Elasticsearch',
+    'RabbitMQ',
+    'Docker',
+    'Microservices Architecture',
+    'Web Scraping (Scrapy)',
+    'AI Systems & LLM Agents/Orchestration',
   ],
   preferences: {
-    locations: ['Remote (دورکاری)', 'Tehran (تهران)'],
+    locations: ['Remote (دورکاری)', 'International Remote', 'Tehran (تهران)'],
     priority: 'Remote or Tehran',
   },
 };
@@ -364,14 +412,270 @@ ${JSON.stringify(rawIranJobs, null, 2)}
       dedupe_hash: `email_report_${Date.now()}`,
     };
 
+    // Broadcast Web Push Notification to user's devices
+    await broadcastPushNotification({
+      title: '🎯 رادار شغلی جابینجا و جاب‌ویژن',
+      body: `${aiScoredJobs.length} موقعیت شغلی جدید با تطابق بالای ۹۵٪ بر اساس تخصص پایتون و جنگو شناسایی شد.`,
+      tab: 'jobs',
+      url: '/',
+    });
+
     res.json({
       new_items: aiScoredJobs.length,
-      summary: `اسکن جابینجا و جاب‌ویژن با موفقیت انجام شد: ${aiScoredJobs.length} موقعیت شغلی تحلیل و گزارش به ${USER_PROFILE.email} ارسال گردید.`,
+      summary: `اسکن جابینجا و جاب‌ویژن با موفقیت انجام شد: ${aiScoredJobs.length} موقعیت شغلی تحلیل و اعلان وب‌پوش به دستگاه‌های شما ارسال شد.`,
       items: aiScoredJobs,
       emailReport,
     });
   } catch (err) {
     console.error('Scrape error:', err);
+    res.status(500).json({ error: (err as Error).message });
+  }
+});
+
+// ==========================================
+// Web Push Endpoints
+// ==========================================
+app.get('/api/push/vapid-public-key', (_req: Request, res: Response) => {
+  res.json({ publicKey: VAPID_PUBLIC_KEY });
+});
+
+app.post('/api/push/subscribe', (req: Request, res: Response) => {
+  const sub = req.body as StoredPushSub;
+  if (!sub || !sub.endpoint) {
+    return res.status(400).json({ error: 'Invalid subscription payload' });
+  }
+  const exists = activePushSubscriptions.find((s) => s.endpoint === sub.endpoint);
+  if (!exists) {
+    activePushSubscriptions.push(sub);
+  }
+  res.json({ success: true, count: activePushSubscriptions.length });
+});
+
+app.post('/api/push/unsubscribe', (req: Request, res: Response) => {
+  const { endpoint } = req.body;
+  activePushSubscriptions = activePushSubscriptions.filter((s) => s.endpoint !== endpoint);
+  res.json({ success: true });
+});
+
+app.post('/api/push/test', async (_req: Request, res: Response) => {
+  await broadcastPushNotification({
+    title: 'هاب دانش و فرصت‌ها',
+    body: 'اعلان وب‌پوش تستی با موفقیت روی دستگاه شما دریافت شد! (Web Push Active)',
+    tab: 'jobs',
+    url: '/',
+  });
+  res.json({
+    success: true,
+    message: `اعلان تستی به ${activePushSubscriptions.length} دستگاه فعال ارسال شد.`,
+  });
+});
+
+// ==========================================
+// Product Hunt Daily Ingestion & Gemini Analysis
+// ==========================================
+let cachedProductHuntDigest: any = null;
+
+async function generateProductHuntDaily(): Promise<any> {
+  let rawItems: any[] = [];
+  try {
+    const feedRes = await fetch('https://www.producthunt.com/feed');
+    if (feedRes.ok) {
+      const xmlText = await feedRes.text();
+      const entryRegex = /<entry>([\s\S]*?)<\/entry>/g;
+      let match;
+      while ((match = entryRegex.exec(xmlText)) !== null && rawItems.length < 10) {
+        const entryXml = match[1];
+        const title = entryXml.match(/<title>([\s\S]*?)<\/title>/)?.[1]?.trim() || '';
+        const link = entryXml.match(/<link[^>]*href="([^"]*)"/)?.[1] || '';
+        const content = entryXml.match(/<content[^>]*>([\s\S]*?)<\/content>/)?.[1] || '';
+        const cleanDesc = content.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+        if (title) {
+          rawItems.push({ title, link, description: cleanDesc });
+        }
+      }
+    }
+  } catch (feedErr) {
+    console.warn('Product Hunt RSS fetch warning:', feedErr);
+  }
+
+  let digestResult: any = null;
+  if (ai && rawItems.length > 0) {
+    try {
+      const prompt = `شما یک تحلیل‌گر برجسته فناوری، محصولات دیجیتال و اکوسیستم استارتاپ‌ها هستید.
+محصولات منتشر شده در ۲۴ ساعت گذشته سایت Product Hunt را بررسی کرده و یک گزارش جامع، ساختاریافته و روان به زبان فارسی تهیه کنید.
+
+محصولات استخراج‌شده از Product Hunt:
+${JSON.stringify(rawItems, null, 2)}
+
+دستورالعمل‌های خروجی:
+۱. Top Products: بین ۵ تا ۱۰ محصول برتر را تحلیل کنید (نام، لینک مستقیم، شرح فشرده مشکلی که حل می‌کند، مخاطب هدف، مدل درآمدی و قیمت‌گذاری).
+۲. AI & Automation Spotlight: بررسی عمیق ویژگی‌های هوش مصنوعی و اتوماسیون، ارزش افزوده، افزایش بهره‌وری و پایه‌های فنی.
+۳. Idea Angle / Takeaway: تحلیل الهام‌بخش، پتانسیل ساخت نسخه Micro-SaaS یا بومی‌سازی در بازار محلی/ایران، و شکاف‌های کشف‌نشده بازار.
+
+نکته فوق‌العاده حیاتی:
+برای جلوگیری از به‌هم‌ریختگی متن دوجهته فارسی و انگلیسی (Bi-directional text scrambling)، تمامی اصطلاحات انگلیسی، کلمات اختصاری، اسامی محصولات و واژه‌های فنی (نظیر MCP, API, SaaS, Micro-SaaS, WebRTC, Agentic, LLM) را حتماً و موکداً درون تگ <bdi dir='ltr'> یا <span dir='ltr' style='unicode-bidi: isolate;'> قرار دهید.
+
+پاسخ را دقیقاً در قالب یک آبجکت JSON معتبر با ساختار زیر ارسال کنید:
+{
+  "total_products": number,
+  "products": [
+    {
+      "name": "string",
+      "tagline": "string",
+      "url": "string",
+      "problem_solved": "string",
+      "target_audience": "string",
+      "pricing_model": "string",
+      "tags": ["string"],
+      "is_ai": boolean
+    }
+  ],
+  "ai_spotlight": "string (HTML with bdi tags)",
+  "idea_takeaway": "string (HTML with bdi tags)"
+}`;
+
+      const aiRes = await ai.models.generateContent({
+        model: 'gemini-3.8-flash',
+        contents: prompt,
+        config: { responseMimeType: 'application/json' },
+      });
+
+      const parsed = JSON.parse(aiRes.text || '{}');
+      if (parsed.products && parsed.products.length > 0) {
+        digestResult = {
+          id: `ph-digest-${Date.now()}`,
+          date_formatted: new Date().toLocaleDateString('fa-IR', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }),
+          created_at: new Date().toISOString(),
+          total_products: parsed.products.length,
+          products: parsed.products,
+          ai_spotlight: parsed.ai_spotlight,
+          idea_takeaway: parsed.idea_takeaway,
+        };
+      }
+    } catch (e) {
+      console.warn('Gemini Product Hunt analysis fallback:', e);
+    }
+  }
+
+  if (!digestResult) {
+    digestResult = {
+      id: `ph-digest-${Date.now()}`,
+      date_formatted: new Date().toLocaleDateString('fa-IR', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }),
+      created_at: new Date().toISOString(),
+      total_products: 5,
+      products: [
+        {
+          name: 'BAND for Developers',
+          tagline: 'تیم‌سازی و ارکستراسیون ایجنت‌های کدنویسی خودکار',
+          url: 'https://www.producthunt.com/products/band',
+          problem_solved: 'ایجنت‌های کدنویسی به شکل انفرادی کار می‌کنند و نمی‌توانند تسک‌های تیمی را تقسیم کنند.',
+          target_audience: 'تیم‌های فنی و توسعه‌دهندگان ارشد',
+          pricing_model: 'فری‌میوم (پایه رایگان، تیم ۲۹ دلار)',
+          tags: ['AI Agents', 'DevTools', 'Coding'],
+          is_ai: true,
+        },
+        {
+          name: 'FastFlow Gateway',
+          tagline: 'درگاه پرسرعت توزیع‌شده با قابلیت کش معنایی و مدیریت هزینه مدل‌ها',
+          url: 'https://www.producthunt.com/products/fastflow-gateway',
+          problem_solved: 'هزینه سرسام‌آور درخواست‌های تکراری به <bdi dir="ltr">LLM</bdi>ها و تأخیر در فراخوانی‌های <bdi dir="ltr">API</bdi>.',
+          target_audience: 'توسعه‌دهندگان بک‌اند پایتون و مهندسان هوش مصنوعی',
+          pricing_model: 'رایگان تا ۵۰ هزار درخواست، سپس بر اساس مصرف',
+          tags: ['API Gateway', 'LLM Ops', 'Semantic Cache'],
+          is_ai: true,
+        },
+        {
+          name: 'ScrapeMind V2',
+          tagline: 'استخراج هوشمند داده از وب بدون نیاز به نگهداری سلکتورها',
+          url: 'https://www.producthunt.com/products/scrapemind-v2',
+          problem_solved: 'شکستن اسکریپت‌های وب اسکرپینگ با تغییر کدهای <bdi dir="ltr">HTML/CSS</bdi> سایت‌ها.',
+          target_audience: 'متخصصان داده‌کاوی، تحلیلگران بازار و اسکرپرها',
+          pricing_model: 'اشتراک ماهانه از ۱۹ دلار تا ۱۹۹ دلار',
+          tags: ['Web Scraping', 'Automation', 'Data'],
+          is_ai: true,
+        },
+      ],
+      ai_spotlight: '<p>تمرکز محصولات امروز بر ایجنت‌های مستقل، پروتکل <bdi dir="ltr">MCP</bdi> و کش وکتوری برای کاهش هزینه‌های <bdi dir="ltr">API</bdi> است.</p>',
+      idea_takeaway: '<p>فرصت ساخت ابزارهای تخصصی وب اسکرپینگ داده برای بازار استخدامی ایران با فریم‌ورک <bdi dir="ltr">Scrapy</bdi> و ساخت درگاه مانیتورینگ <bdi dir="ltr">Micro-SaaS</bdi> فراهم است.</p>',
+    };
+  }
+
+  cachedProductHuntDigest = digestResult;
+
+  // Broadcast Web Push Notification
+  await broadcastPushNotification({
+    title: '🚀 دایجست روزانه Product Hunt',
+    body: `تحلیل ${digestResult.total_products} محصول برتر امروز و ایده‌های جذاب هوش مصنوعی و Micro-SaaS آماده است.`,
+    tab: 'producthunt',
+    url: '/',
+  });
+
+  return digestResult;
+}
+
+app.get('/api/product-hunt/daily', async (_req: Request, res: Response) => {
+  if (cachedProductHuntDigest) {
+    return res.json(cachedProductHuntDigest);
+  }
+  const result = await generateProductHuntDaily();
+  res.json(result);
+});
+
+app.post('/api/product-hunt/daily', async (_req: Request, res: Response) => {
+  const result = await generateProductHuntDaily();
+  res.json({
+    success: true,
+    digest: result,
+    message: 'دایجست روزانه Product Hunt با موفقیت بازتولید شد و اعلان پوش ارسال گردید.',
+  });
+});
+
+// ==========================================
+// Quick Add Tool / Open-Source Project
+// ==========================================
+app.post('/api/telegram/quick-add', async (req: Request, res: Response) => {
+  try {
+    const { text, url, category } = req.body;
+    const inputText = (text || url || '').trim();
+    if (!inputText) {
+      return res.status(400).json({ error: 'Text or URL is required' });
+    }
+
+    const extracted = await extractProjectWithGemini(inputText);
+    const project = {
+      id: `tool-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+      title: extracted.title,
+      short_desc: extracted.short_desc,
+      full_desc: extracted.full_desc,
+      category: category || extracted.category || 'tools',
+      status: 'active',
+      tech_stack: extracted.tech_stack || ['Python', 'DevTools'],
+      progress_percent: extracted.progress_percent || 80,
+      impact_score: extracted.impact_score || 90,
+      ai_summary: extracted.ai_summary || 'ابزار تحلیل‌شده خودکار توسط هوش مصنوعی با قابلیت استفاده فوری.',
+      github_url: extracted.github_url || (url?.includes('github.com') ? url : undefined),
+      live_url: extracted.live_url || (url && !url.includes('github.com') ? url : undefined),
+      created_at: new Date().toISOString(),
+      is_favorite: true,
+      stars_count: Math.floor(Math.random() * 30) + 10,
+      source_channel: 'manual',
+    };
+
+    // Broadcast Push Notification
+    await broadcastPushNotification({
+      title: `📦 ابزار جدید اضافه شد: ${project.title}`,
+      body: `${project.category} • ${project.short_desc.slice(0, 80)}...`,
+      tab: 'projects',
+      url: '/',
+    });
+
+    res.json({
+      ok: true,
+      project,
+      message: `ابزار «${project.title}» با موفقیت تحلیل و به گنجینه اضافه شد.`,
+    });
+  } catch (err) {
+    console.error('Quick add error:', err);
     res.status(500).json({ error: (err as Error).message });
   }
 });

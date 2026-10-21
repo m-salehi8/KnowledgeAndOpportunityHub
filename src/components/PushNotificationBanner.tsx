@@ -69,9 +69,9 @@ export const PushNotificationBanner: React.FC = () => {
             <Check className="w-4 h-4" />
           </div>
           <div>
-            <h4 className="text-xs font-bold text-slate-900 dark:text-white">{t.push_active}</h4>
+            <h4 className="text-xs font-bold text-slate-900 dark:text-white">اعلان‌های وب‌پوش فعال است</h4>
             <p className="text-[11px] text-slate-500 dark:text-slate-400">
-              {lang === 'fa' ? 'به‌روزرسانی‌های تلگرام و رادار شغل ارسال می‌شوند.' : 'Telegram & Job radar alerts are on.'}
+              اعلان‌های رادار شغل، دایجست Product Hunt و ابزارهای تلگرام مستقیماً روی گوشی ارسال می‌شوند.
             </p>
           </div>
         </div>

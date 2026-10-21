@@ -4,7 +4,7 @@ from database import get_db
 from models import Item, JobMeta
 from schemas import ItemOut, JobStatusUpdate
 from auth import verify_app_token
-from services.scraper import run_news_digest_job, run_job_radar_job
+from services.scraper import run_news_digest_job, run_job_radar_job, run_product_hunt_job
 
 router = APIRouter(prefix="/api/jobs", tags=["Jobs"], dependencies=[Depends(verify_app_token)])
 
@@ -43,12 +43,18 @@ def update_job_status(id: str, payload: JobStatusUpdate, db: Session = Depends(g
 
 
 @router.post("/run/{job_type}")
-async def trigger_job_run(job_type: str = Path(..., regex="^(news|jobs)$")):
+async def trigger_job_run(job_type: str = Path(..., regex="^(news|jobs|producthunt)$")):
     if job_type == "news":
         count = await run_news_digest_job()
         return {
             "new_items": count,
             "summary": f"{count} خبر تحلیلی جدید واکشی و ذخیره گردید."
+        }
+    elif job_type == "producthunt":
+        count = await run_product_hunt_job()
+        return {
+            "new_items": count,
+            "summary": "دایجست روزانه پروداکت هانت با موفقیت دریافت و اعلان وب‌پوش ارسال شد."
         }
     else:
         count = await run_job_radar_job()

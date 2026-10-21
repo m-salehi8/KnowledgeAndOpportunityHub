@@ -110,10 +110,10 @@ export const JobsRadarView: React.FC = () => {
     (i) => i.source_name.includes('jobinja') || i.source_name.includes('jobvision') || i.source_url?.includes('jobinja') || i.source_url?.includes('jobvision')
   ).length;
 
-  const userEmail = 'mamadreza8138@gmail.com';
+  const userEmail = 'job.msalehi@gmail.com';
 
   const generateEmailReportText = () => {
-    const header = `به: ${userEmail}\nموضوع: گزارش روزانه فرصت‌های شغلی جدید برنامه‌نویس پایتون و جنگو (جابینجا و جاب‌ویژن)\nتاریخ: ${new Date().toLocaleDateString('fa-IR')} ساعت ۰۸:۰۰ صبح\n\nمحمدرضا عزیز،\nبر اساس مهارت‌های شما (پایتون، جنگو، FastAPI، معماری میکروسرویس، PostgreSQL، وب‌اسکرپینگ و سیستم‌های AI با ۴+ سال سابقه)، نتایج رصد ۲۴ ساعت گذشته به شرح زیر است:\n\n`;
+    const header = `فرصت‌های شغلی جدید (جابینجا و جاب‌ویژن) - ${new Date().toLocaleDateString('fa-IR')}\n\nمحمدرضا صالحی عزیز،\nبر اساس مهارت‌های شما (پایتون، جنگو، FastAPI، معماری میکروسرویس، PostgreSQL، وب‌اسکرپینگ، ردیس، الستیک، رابیت و سیستم‌های LLM Agents با ۴+ سال سابقه)، آگهی‌های منتخب ۲۴ ساعت گذشته به شرح زیر است:\n\n`;
 
     const jobEntries = items
       .filter((i) => (i.job_meta?.match_score ?? 0) >= 80)
@@ -190,18 +190,29 @@ export const JobsRadarView: React.FC = () => {
             <span className="text-[11px] text-slate-400">سابقه: بیش از ۴ سال</span>
           </div>
           <div className="flex flex-wrap gap-1.5">
-            {['Python', 'Django', 'FastAPI', 'معماری میکروسرویس', 'PostgreSQL', 'وب اسکرپینگ', 'سیستم‌های هوش مصنوعی'].map(
-              (skill) => (
-                <span
-                  key={skill}
-                  className="px-2 py-0.5 rounded-lg bg-indigo-500/15 border border-indigo-400/25 text-indigo-200 text-[10px] font-medium"
-                >
-                  {skill}
-                </span>
-              )
-            )}
+            {[
+              'Python',
+              'Django',
+              'FastAPI',
+              'Flask',
+              'PostgreSQL',
+              'Redis',
+              'Elasticsearch',
+              'RabbitMQ',
+              'Docker',
+              'Microservices',
+              'Scrapy',
+              'LLM Agents',
+            ].map((skill) => (
+              <span
+                key={skill}
+                className="px-2 py-0.5 rounded-lg bg-indigo-500/15 border border-indigo-400/25 text-indigo-200 text-[10px] font-medium"
+              >
+                {skill}
+              </span>
+            ))}
             <span className="px-2 py-0.5 rounded-lg bg-emerald-500/15 border border-emerald-400/25 text-emerald-200 text-[10px] font-medium">
-              اولویت: دورکاری / تهران
+              اولویت: دورکاری (Remote) / تهران
             </span>
           </div>
 

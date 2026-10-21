@@ -4,7 +4,7 @@ import { translations, Language } from '../utils/i18n';
 import { api } from '../api/client';
 import { detectPWA, PWAState } from '../utils/pwa';
 
-export type TabType = 'inbox' | 'jobs' | 'projects' | 'search' | 'saved' | 'settings';
+export type TabType = 'inbox' | 'jobs' | 'producthunt' | 'projects' | 'search' | 'saved' | 'settings';
 
 interface ToastMessage {
   id: string;
@@ -153,6 +153,31 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   useEffect(() => {
     refreshStats();
   }, [reloadTrigger, refreshStats]);
+
+  // Listen for SW push notification click navigation & URL params
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    const params = new URLSearchParams(window.location.search);
+    const tabParam = params.get('tab') as TabType;
+    if (tabParam && ['inbox', 'jobs', 'producthunt', 'projects', 'search', 'saved', 'settings'].includes(tabParam)) {
+      setActiveTab(tabParam);
+    }
+
+    const handleSWMessage = (event: MessageEvent) => {
+      if (event.data?.type === 'NAVIGATE_TAB' && event.data.tab) {
+        const targetTab = event.data.tab as TabType;
+        if (['inbox', 'jobs', 'producthunt', 'projects', 'search', 'saved', 'settings'].includes(targetTab)) {
+          setActiveTab(targetTab);
+        }
+      }
+    };
+
+    navigator.serviceWorker?.addEventListener('message', handleSWMessage);
+    return () => {
+      navigator.serviceWorker?.removeEventListener('message', handleSWMessage);
+    };
+  }, []);
 
   return (
     <AppContext.Provider

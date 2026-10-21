@@ -20,14 +20,15 @@ class Settings(BaseSettings):
     # Inbound Email
     EMAIL_WEBHOOK_SECRET: str = "email_secret_token_123"
 
-    # Web Push
-    VAPID_PUBLIC_KEY: str = "BEl62iUYgUivxIkv69yViEuiBIa-Ib9-SkvMeAtA3LFgDzkrxZJjSgSnfckjBJuNu3005REC_rvOjBQdBxDZYmtc"
-    VAPID_PRIVATE_KEY: Optional[str] = None
-    VAPID_CLAIMS_EMAIL: str = "mailto:admin@example.com"
+    # Web Push (VAPID)
+    VAPID_PUBLIC_KEY: str = "BOtRPnCylgx30jh1_ZYMU3Amh-5Xv9B3BfoDwXiiNd5Feg3EREsbcGJwFTxY2Xo2eXb3uAgoYgGbrtMVoIqCRJU"
+    VAPID_PRIVATE_KEY: Optional[str] = "Dx9WmasysDLY2ewW2yW0rR9ETllv2weXl6BEYXcR-Xk"
+    VAPID_CLAIMS_EMAIL: str = "mailto:job.msalehi@gmail.com"
 
     # Scheduling
     NEWS_DIGEST_TIME: str = "07:30"
     JOB_RADAR_TIME: str = "08:00"
+    PRODUCT_HUNT_TIME: str = "08:30"
     MIN_JOB_SCORE_NOTIFY: int = 80
 
 

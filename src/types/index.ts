@@ -1,4 +1,4 @@
-export type ItemType = 'telegram' | 'news' | 'job' | 'email';
+export type ItemType = 'telegram' | 'news' | 'job' | 'email' | 'producthunt';
 
 export type JobStatus = 'new' | 'saved' | 'applied' | 'interview' | 'rejected';
 
@@ -101,5 +101,26 @@ export interface Project {
   stars_count?: number;
   source_channel?: 'telegram' | 'manual' | 'github';
   telegram_sender?: string;
+}
+
+export interface ProductHuntProduct {
+  name: string;
+  tagline: string;
+  url: string;
+  problem_solved: string;
+  target_audience: string;
+  pricing_model: string;
+  tags: string[];
+  is_ai: boolean;
+}
+
+export interface ProductHuntDailyDigest {
+  id: string;
+  date_formatted: string;
+  created_at: string;
+  total_products: number;
+  products: ProductHuntProduct[];
+  ai_spotlight: string;
+  idea_takeaway: string;
 }
 

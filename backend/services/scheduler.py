@@ -1,7 +1,7 @@
 import logging
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
-from services.scraper import run_news_digest_job, run_job_radar_job
+from services.scraper import run_news_digest_job, run_job_radar_job, run_product_hunt_job
 from config import settings
 
 logger = logging.getLogger(__name__)
@@ -20,7 +20,7 @@ def start_scheduler():
             replace_existing=True,
         )
 
-        # Default: 08:00 for Job Radar
+        # Default: 08:00 for Job Radar (Jobinja & Jobvision)
         job_hour, job_minute = map(int, settings.JOB_RADAR_TIME.split(":"))
         scheduler.add_job(
             run_job_radar_job,
@@ -29,8 +29,17 @@ def start_scheduler():
             replace_existing=True,
         )
 
+        # Default: 08:30 for Product Hunt Daily
+        ph_hour, ph_minute = map(int, settings.PRODUCT_HUNT_TIME.split(":"))
+        scheduler.add_job(
+            run_product_hunt_job,
+            CronTrigger(hour=ph_hour, minute=ph_minute),
+            id="daily_product_hunt",
+            replace_existing=True,
+        )
+
         scheduler.start()
-        logger.info(f"APScheduler started. News at {settings.NEWS_DIGEST_TIME}, Jobs at {settings.JOB_RADAR_TIME}.")
+        logger.info(f"APScheduler started. News at {settings.NEWS_DIGEST_TIME}, Jobs at {settings.JOB_RADAR_TIME}, Product Hunt at {settings.PRODUCT_HUNT_TIME}.")
     except Exception as e:
         logger.error(f"Failed to start APScheduler: {e}")
 

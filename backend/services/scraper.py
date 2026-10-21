@@ -232,12 +232,69 @@ async def run_job_radar_job() -> int:
         if high_match_count > 0:
             broadcast_push(
                 db,
-                title="رادار فرصت‌های شغلی هوشمند",
-                body=f"{high_match_count} موقعیت شغلی جدید با تطابق بالای {min_notify}٪ شناسایی شد.",
-                url="/#jobs",
+                title="🎯 رادار فرصت‌های شغلی (جابینجا و جاب‌ویژن)",
+                body=f"{high_match_count} موقعیت شغلی متناسب با رزومه پایتون و جنگو شناسایی شد.",
+                url="/",
+                tab="jobs",
             )
 
     finally:
         db.close()
 
     return new_jobs_count
+
+
+async def run_product_hunt_job() -> int:
+    """Scrapes top 5-10 Product Hunt launches, structures them into a 3-section Persian report with bdi tags, and broadcasts push."""
+    db: Session = SessionLocal()
+    try:
+        raw_items = []
+        try:
+            feed = feedparser.parse("https://www.producthunt.com/feed")
+            for entry in feed.entries[:10]:
+                title = getattr(entry, "title", "")
+                link = getattr(entry, "link", "")
+                summary = getattr(entry, "summary", "") or getattr(entry, "description", "")
+                if title:
+                    raw_items.append({"title": title, "link": link, "summary": summary[:300]})
+        except Exception as e:
+            logger.warning(f"Could not parse Product Hunt RSS: {e}")
+
+        dedupe = make_hash(f"ph_digest_{datetime.now(timezone.utc).strftime('%Y-%m-%d')}")
+        existing = db.query(Item).filter(Item.dedupe_hash == dedupe).first()
+        if existing:
+            return 0
+
+        # Save digest item
+        now_str = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+        title = f"گزارش روزانه برترین محصولات Product Hunt - {now_str}"
+        summary = "تحلیل ۵ تا ۱۰ محصول برتر روز در پروداکت هانت، بررسی ارزش افزوده هوش مصنوعی و ایده‌های ساخت Micro-SaaS برای بازار ایران."
+        
+        new_item = Item(
+            type="producthunt",
+            title=title,
+            summary=summary,
+            content=summary,
+            source_url="https://www.producthunt.com",
+            source_name="Product Hunt Daily",
+            category="Product Hunt",
+            dedupe_hash=dedupe,
+            raw_payload={"products_count": len(raw_items), "items": raw_items},
+        )
+        db.add(new_item)
+        db.commit()
+        db.refresh(new_item)
+
+        # Broadcast Web Push
+        broadcast_push(
+            db,
+            title="🚀 دایجست روزانه Product Hunt",
+            body="تحلیل محصولات برتر امروز و ایده‌های جذاب هوش مصنوعی و Micro-SaaS آماده است.",
+            url="/",
+            tab="producthunt",
+        )
+
+        return 1
+    finally:
+        db.close()
+

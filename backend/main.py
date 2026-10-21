@@ -15,22 +15,65 @@ def init_db_defaults():
     Base.metadata.create_all(bind=engine)
     db = SessionLocal()
     try:
-        # Seed Profile
-        if not db.query(Profile).filter(Profile.id == "singleton_profile").first():
+        # Seed / Update Profile for Mohammadreza Salehi
+        existing_profile = db.query(Profile).filter(Profile.id == "singleton_profile").first()
+        if not existing_profile:
             db.add(
                 Profile(
                     id="singleton_profile",
-                    full_name="محمد‌رضا حسینی",
-                    bio="مهندس ارشد نرم‌افزار، علاقه‌مند به هوش مصنوعی مولد و معماری سیستم‌های توزیع‌شده.",
-                    skills=["Python", "FastAPI", "React", "TypeScript", "PostgreSQL", "Docker", "Gemini AI"],
-                    preferred_locations=["Remote", "Tehran", "Europe (Remote)"],
+                    full_name="محمدرضا صالحی",
+                    bio="مهندس ارشد بک‌اند پایتون و سیستم‌های توزیع‌شده با تخصص در جنگو، FastAPI، وب اسکرپینگ و سیستم‌های هوش مصنوعی / LLM.",
+                    skills=[
+                        "Python",
+                        "Django",
+                        "FastAPI",
+                        "Flask",
+                        "PostgreSQL",
+                        "Redis",
+                        "Elasticsearch",
+                        "RabbitMQ",
+                        "Docker",
+                        "Microservices",
+                        "Web Scraping (Scrapy)",
+                        "LLM Agents & Orchestration",
+                    ],
+                    preferred_locations=["Remote (دورکاری)", "International Remote", "Tehran (تهران)"],
                     remote_preference="remote_only",
-                    min_salary_usd=65000,
-                    keywords_include=["Senior", "Staff", "Lead", "AI", "Full-Stack"],
-                    keywords_exclude=["Junior", "Wordpress", "PHP 5"],
-                    news_interests=["AI & LLMs", "Distributed Systems", "Frontend Architecture"],
+                    min_salary_usd=75000,
+                    keywords_include=[
+                        "Python",
+                        "Django",
+                        "FastAPI",
+                        "Backend",
+                        "Data Engineer",
+                        "Scraping",
+                        "AI",
+                        "LLM",
+                        "Microservices",
+                    ],
+                    keywords_exclude=["Junior", "Wordpress", "PHP 5", "کارآموز"],
+                    news_interests=["Product Hunt Daily", "AI & Automation", "Micro-SaaS", "Distributed Systems"],
                 )
             )
+        else:
+            # Update existing profile if older name was seeded
+            existing_profile.full_name = "محمدرضا صالحی"
+            existing_profile.bio = "مهندس ارشد بک‌اند پایتون و سیستم‌های توزیع‌شده با تخصص در جنگو، FastAPI، وب اسکرپینگ و سیستم‌های هوش مصنوعی / LLM."
+            existing_profile.skills = [
+                "Python",
+                "Django",
+                "FastAPI",
+                "Flask",
+                "PostgreSQL",
+                "Redis",
+                "Elasticsearch",
+                "RabbitMQ",
+                "Docker",
+                "Microservices",
+                "Web Scraping (Scrapy)",
+                "LLM Agents & Orchestration",
+            ]
+            existing_profile.preferred_locations = ["Remote (دورکاری)", "International Remote", "Tehran (تهران)"]
 
         # Seed Settings
         if not db.query(AppSettingsModel).filter(AppSettingsModel.id == "singleton_settings").first():

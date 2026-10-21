@@ -1,11 +1,11 @@
 import React from 'react';
-import { Inbox, Compass, FolderKanban, Search, Bookmark, Settings2 } from 'lucide-react';
+import { Inbox, Compass, Rocket, FolderKanban, Search, Settings2 } from 'lucide-react';
 import { useApp, TabType } from '../context/AppContext';
 import { toPersianDigits } from '../utils/format';
 
 interface TabItem {
   id: TabType;
-  labelKey: 'tab_inbox' | 'tab_jobs' | 'tab_projects' | 'tab_search' | 'tab_saved' | 'tab_settings';
+  labelKey: 'tab_inbox' | 'tab_jobs' | 'tab_producthunt' | 'tab_projects' | 'tab_search' | 'tab_saved' | 'tab_settings';
   icon: React.ComponentType<{ className?: string }>;
   badge?: number;
 }
@@ -27,6 +27,11 @@ export const TabBar: React.FC = () => {
       badge: stats?.high_match_jobs,
     },
     {
+      id: 'producthunt',
+      labelKey: 'tab_producthunt',
+      icon: Rocket,
+    },
+    {
       id: 'projects',
       labelKey: 'tab_projects',
       icon: FolderKanban,
@@ -36,12 +41,6 @@ export const TabBar: React.FC = () => {
       id: 'search',
       labelKey: 'tab_search',
       icon: Search,
-    },
-    {
-      id: 'saved',
-      labelKey: 'tab_saved',
-      icon: Bookmark,
-      badge: stats?.saved_count,
     },
     {
       id: 'settings',

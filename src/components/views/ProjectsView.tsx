@@ -59,6 +59,34 @@ export const ProjectsView: React.FC = () => {
   const [newLive, setNewLive] = useState('');
   const [isSyncingTelegram, setIsSyncingTelegram] = useState(false);
   const [isSimulatingTelegram, setIsSimulatingTelegram] = useState(false);
+  const [isQuickModalOpen, setIsQuickModalOpen] = useState(false);
+  const [quickPasteText, setQuickPasteText] = useState('');
+  const [isQuickAdding, setIsQuickAdding] = useState(false);
+
+  const handleQuickAdd = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!quickPasteText.trim()) {
+      showToast('لطفاً متن پیام تلگرام یا لینک ابزار را وارد نمایید.', 'warning');
+      return;
+    }
+    setIsQuickAdding(true);
+    showToast('در حال استخراج مشخصات ابزار با هوش مصنوعی جمنای...', 'info');
+    try {
+      const res = await api.quickAddToolOrProject({
+        text: quickPasteText.trim(),
+      });
+      if (res.project) {
+        setProjects((prev) => [res.project, ...prev]);
+        showToast(res.message, 'success');
+        setQuickPasteText('');
+        setIsQuickModalOpen(false);
+      }
+    } catch (err) {
+      showToast((err as Error).message, 'error');
+    } finally {
+      setIsQuickAdding(false);
+    }
+  };
 
   // Persist projects to localStorage
   useEffect(() => {
@@ -265,13 +293,21 @@ export const ProjectsView: React.FC = () => {
             </p>
           </div>
 
-          <button
-            onClick={() => setIsAddModalOpen(true)}
-            className="self-start md:self-center inline-flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-white text-indigo-900 hover:bg-indigo-50 font-bold text-xs shadow-lg shadow-black/15 active:scale-95 transition-all"
-          >
-            <Plus className="w-4 h-4 stroke-[2.5]" />
-            <span>افزودن پروژه جدید</span>
-          </button>
+          <div className="flex items-center gap-2 flex-wrap">
+            <button
+              onClick={() => setIsQuickModalOpen(true)}
+              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-emerald-500 hover:bg-emerald-600 text-white font-bold text-xs shadow-lg shadow-emerald-500/20 active:scale-95 transition-all cursor-pointer"
+            >
+              <span>📋 ثبت سریع پیام یا لینک (Quick Paste)</span>
+            </button>
+            <button
+              onClick={() => setIsAddModalOpen(true)}
+              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-white text-indigo-900 hover:bg-indigo-50 font-bold text-xs shadow-lg shadow-black/15 active:scale-95 transition-all cursor-pointer"
+            >
+              <Plus className="w-4 h-4 stroke-[2.5]" />
+              <span>افزودن دستی</span>
+            </button>
+          </div>
         </div>
 
         {/* Stats Row */}
@@ -841,6 +877,72 @@ export const ProjectsView: React.FC = () => {
                     className="px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold shadow-md shadow-indigo-600/30 active:scale-95 transition-all"
                   >
                     ذخیره و ثبت پروژه
+                  </button>
+                </div>
+              </form>
+            </motion.div>
+          </div>
+        )}
+        {/* Quick Paste Modal */}
+        {isQuickModalOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="w-full max-w-lg bg-white dark:bg-[#161622] rounded-3xl p-6 border border-slate-200 dark:border-white/10 shadow-2xl space-y-4"
+            >
+              <div className="flex items-center justify-between border-b border-slate-100 dark:border-white/10 pb-3">
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 rounded-xl bg-emerald-500/15 text-emerald-500 flex items-center justify-center">
+                    <Sparkles className="w-4 h-4" />
+                  </div>
+                  <h3 className="font-bold text-base text-slate-900 dark:text-white">
+                    ثبت سریع پیام تلگرام یا لینک (Quick Paste)
+                  </h3>
+                </div>
+                <button
+                  onClick={() => setIsQuickModalOpen(false)}
+                  className="p-1 rounded-xl text-slate-400 hover:text-slate-600 dark:hover:text-white cursor-pointer"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed">
+                هر پست یا متنی را که از تلگرام، گیت‌هاب یا وب کپی کرده‌اید اینجا Paste کنید. هوش مصنوعی جمنای خودکار عنوان، قابلیت‌ها، استک فنی و لینک‌ها را استخراج کرده و به گنجینه ابزارها اضافه می‌کند (همراه با ارسال اعلان وب‌پوش روی گوشی).
+              </p>
+
+              <form onSubmit={handleQuickAdd} className="space-y-4 text-xs">
+                <div>
+                  <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
+                    متن پیام، توضیح یا لینک:
+                  </label>
+                  <textarea
+                    rows={6}
+                    required
+                    value={quickPasteText}
+                    onChange={(e) => setQuickPasteText(e.target.value)}
+                    placeholder="مثال: معرفی کتابخانه LangGraph Studio برای دیباگ ایجنت‌های هوش مصنوعی. ریپازیتوری: https://github.com/langchain-ai/langgraph-studio ..."
+                    className="w-full p-3.5 rounded-2xl bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500 leading-relaxed"
+                  />
+                </div>
+
+                <div className="flex items-center justify-end gap-2 pt-2">
+                  <button
+                    type="button"
+                    onClick={() => setIsQuickModalOpen(false)}
+                    className="px-4 py-2.5 rounded-xl bg-slate-100 dark:bg-white/10 text-slate-700 dark:text-slate-300 font-semibold cursor-pointer"
+                  >
+                    انصراف
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={isQuickAdding || !quickPasteText.trim()}
+                    className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold shadow-md shadow-emerald-600/30 active:scale-95 transition-all disabled:opacity-50 cursor-pointer"
+                  >
+                    <Sparkles className={`w-4 h-4 ${isQuickAdding ? 'animate-spin' : ''}`} />
+                    <span>{isQuickAdding ? 'در حال تحلیل با هوش مصنوعی...' : 'تحلیل و ذخیره در گنجینه'}</span>
                   </button>
                 </div>
               </form>

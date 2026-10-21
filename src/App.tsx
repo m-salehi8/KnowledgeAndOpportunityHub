@@ -6,6 +6,7 @@ import { DesktopSidebar } from './components/DesktopSidebar';
 import { ItemDetailModal } from './components/ItemDetailModal';
 import { InboxView } from './components/views/InboxView';
 import { JobsRadarView } from './components/views/JobsRadarView';
+import { ProductHuntView } from './components/views/ProductHuntView';
 import { ProjectsView } from './components/views/ProjectsView';
 import { SearchView } from './components/views/SearchView';
 import { SavedView } from './components/views/SavedView';
@@ -23,6 +24,8 @@ const AppContent: React.FC = () => {
         return <InboxView />;
       case 'jobs':
         return <JobsRadarView />;
+      case 'producthunt':
+        return <ProductHuntView />;
       case 'projects':
         return <ProjectsView />;
       case 'search':
@@ -41,9 +44,11 @@ const AppContent: React.FC = () => {
       case 'inbox':
         return { title: 'صندوق ورودی جامع', desc: 'پیام‌های فورواردشده تلگرام، خلاصه اخبار روزانه و اعلان‌های متمرکز' };
       case 'jobs':
-        return { title: 'رادار فرصت‌های شغلی', desc: 'آگهی‌های اسکن‌شده از منابع معتبر همراه با امتیاز تطابق هوش مصنوعی' };
+        return { title: 'رادار فرصت‌های شغلی', desc: 'آگهی‌های اسکن‌شده جابینجا و جاب‌ویژن همراه با امتیاز تطابق هوش مصنوعی' };
+      case 'producthunt':
+        return { title: 'دایجست روزانه Product Hunt', desc: 'برترین محصولات ۲۴ ساعت گذشته، بررسی هوش مصنوعی و ایده‌های ساخت Micro-SaaS' };
       case 'projects':
-        return { title: 'پروژه‌های منتخب', desc: 'ویترین ایده‌ها، مخازن متن‌باز و سیستم‌های توسعه‌یافته' };
+        return { title: 'ابزارها، پروژه‌ها و تلگرام', desc: 'گنجینه ابزارهای فنی، سرویس‌های رایگان و پیام‌های استخراج‌شده از تلگرام بدون حواس‌پرتی' };
       case 'search':
         return { title: 'جستجو و دسته‌بندی‌ها', desc: 'جستجوی هوشمند در عناوین، متن‌ها، برچسب‌ها و فیلترهای ترکیبی' };
       case 'saved':

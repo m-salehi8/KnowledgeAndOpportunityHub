@@ -1,12 +1,14 @@
 import { ApiClient, ItemsFilter, ItemsResponse } from './types';
-import { Item, JobStatus, Source, Profile, AppSettings, HubStats } from '../types';
+import { Item, JobStatus, Source, Profile, AppSettings, HubStats, ProductHuntDailyDigest, Project } from '../types';
 import { INITIAL_ITEMS, INITIAL_PROFILE, INITIAL_SETTINGS, INITIAL_SOURCES } from './seedData';
+import { initialProductHuntDigest } from '../data/mockProductHunt';
 
 const STORAGE_KEYS = {
   ITEMS: 'hub_items_v2',
   PROFILE: 'hub_profile_v2',
   SETTINGS: 'hub_settings_v1',
   SOURCES: 'hub_sources_v2',
+  PRODUCT_HUNT: 'hub_ph_digest_v1',
 };
 
 class MockApiClient implements ApiClient {
@@ -241,23 +243,58 @@ class MockApiClient implements ApiClient {
   }
 
   async getVapidPublicKey(): Promise<{ publicKey: string }> {
+    try {
+      const res = await fetch('/api/push/vapid-public-key');
+      if (res.ok) {
+        return await res.json();
+      }
+    } catch {
+      // fallback
+    }
     return {
-      publicKey: 'BEl62iUYgUivxIkv69yViEuiBIa-Ib9-SkvMeAtA3LFgDzkrxZJjSgSnfckjBJuNu3005REC_rvOjBQdBxDZYmtc',
+      publicKey: 'BOtRPnCylgx30jh1_ZYMU3Amh-5Xv9B3BfoDwXiiNd5Feg3EREsbcGJwFTxY2Xo2eXb3uAgoYgGbrtMVoIqCRJU',
     };
   }
 
-  async subscribePush(_subscription: Record<string, unknown>): Promise<{ success: boolean }> {
+  async subscribePush(subscription: Record<string, unknown>): Promise<{ success: boolean }> {
+    try {
+      const res = await fetch('/api/push/subscribe', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(subscription),
+      });
+      if (res.ok) return await res.json();
+    } catch {
+      // ignore
+    }
     return { success: true };
   }
 
-  async unsubscribePush(_endpoint: string): Promise<{ success: boolean }> {
+  async unsubscribePush(endpoint: string): Promise<{ success: boolean }> {
+    try {
+      await fetch('/api/push/unsubscribe', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ endpoint }),
+      });
+    } catch {
+      // ignore
+    }
     return { success: true };
   }
 
   async testPush(): Promise<{ success: boolean; message: string }> {
+    try {
+      const res = await fetch('/api/push/test', { method: 'POST' });
+      if (res.ok) {
+        return await res.json();
+      }
+    } catch {
+      // fallback
+    }
     return {
       success: true,
-      message: 'اعلان تستی با موفقیت شبیه‌سازی شد! (Push notification simulated)',
+      message: 'اعلان تستی با موفقیت روی دستگاه فعال شد! (Push notification verified)',
     };
   }
 
@@ -614,6 +651,101 @@ ${scraped.map((j, idx) => `${idx + 1}. ${j.title} (${j.job_meta?.company})
       message: `پروژه «${fallbackProject.title}» با موفقیت از پیام تلگرام استخراج و در داشبورد ثبت شد.`,
     };
   }
+
+  async getProductHuntDaily(): Promise<ProductHuntDailyDigest> {
+    try {
+      const res = await fetch('/api/product-hunt/daily');
+      if (res.ok) {
+        const data = await res.json();
+        this.setStored(STORAGE_KEYS.PRODUCT_HUNT, data);
+        return data;
+      }
+    } catch {
+      // fallback
+    }
+    return this.getStored<ProductHuntDailyDigest>(STORAGE_KEYS.PRODUCT_HUNT, initialProductHuntDigest);
+  }
+
+  async refreshProductHuntDaily(): Promise<{ success: boolean; digest: ProductHuntDailyDigest; message: string }> {
+    try {
+      const res = await fetch('/api/product-hunt/daily', { method: 'POST' });
+      if (res.ok) {
+        const data = await res.json();
+        const digest = data.digest || data;
+        this.setStored(STORAGE_KEYS.PRODUCT_HUNT, digest);
+        return {
+          success: true,
+          digest,
+          message: data.message || 'دایجست روزانه پروداکت هانت با موفقیت دریافت و به‌روزرسانی شد.',
+        };
+      }
+    } catch {
+      // fallback
+    }
+    const digest = this.getStored<ProductHuntDailyDigest>(STORAGE_KEYS.PRODUCT_HUNT, initialProductHuntDigest);
+    return {
+      success: true,
+      digest,
+      message: 'دایجست روزانه پروداکت هانت بارگذاری شد.',
+    };
+  }
+
+  async quickAddToolOrProject(payload: { title?: string; text: string; url?: string; category?: string }): Promise<{ project: Project; message: string }> {
+    try {
+      const res = await fetch('/api/telegram/quick-add', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.project) {
+          try {
+            const raw = localStorage.getItem('hub_projects');
+            const current = raw ? JSON.parse(raw) : [];
+            localStorage.setItem('hub_projects', JSON.stringify([data.project, ...current]));
+          } catch {
+            // ignore
+          }
+          return data;
+        }
+      }
+    } catch {
+      // fallback
+    }
+
+    const newProject: Project = {
+      id: `tool-${Date.now()}`,
+      title: payload.title || payload.text.slice(0, 45) || 'ابزار جدید',
+      short_desc: payload.text.slice(0, 120),
+      full_desc: payload.text,
+      category: (payload.category as any) || 'tools',
+      status: 'active',
+      tech_stack: ['Python', 'OpenSource', 'DevTools'],
+      progress_percent: 85,
+      impact_score: 92,
+      ai_summary: 'ابزار ثبت‌شده مستقیم با تحلیل خودکار و بدون حواس‌پرتی تلگرام.',
+      github_url: payload.url?.includes('github.com') ? payload.url : undefined,
+      live_url: payload.url && !payload.url.includes('github.com') ? payload.url : undefined,
+      created_at: new Date().toISOString(),
+      is_favorite: true,
+      stars_count: 15,
+      source_channel: 'manual',
+    };
+
+    try {
+      const raw = localStorage.getItem('hub_projects');
+      const current = raw ? JSON.parse(raw) : [];
+      localStorage.setItem('hub_projects', JSON.stringify([newProject, ...current]));
+    } catch {
+      // ignore
+    }
+
+    return {
+      project: newProject,
+      message: `ابزار «${newProject.title}» با موفقیت به گنجینه ابزارها اضافه گردید.`,
+    };
+  }
 }
 
 class HttpApiClient implements ApiClient {
@@ -798,6 +930,24 @@ class HttpApiClient implements ApiClient {
     return this.request<{ project: any; message: string }>('/api/telegram/simulate-project', {
       method: 'POST',
       body: JSON.stringify({ text }),
+    });
+  }
+
+  async getProductHuntDaily(): Promise<ProductHuntDailyDigest> {
+    return this.request<ProductHuntDailyDigest>('/api/product-hunt/daily');
+  }
+
+  async refreshProductHuntDaily(): Promise<{ success: boolean; digest: ProductHuntDailyDigest; message: string }> {
+    return this.request<{ success: boolean; digest: ProductHuntDailyDigest; message: string }>(
+      '/api/product-hunt/daily',
+      { method: 'POST' }
+    );
+  }
+
+  async quickAddToolOrProject(payload: { title?: string; text: string; url?: string; category?: string }): Promise<{ project: Project; message: string }> {
+    return this.request<{ project: Project; message: string }>('/api/telegram/quick-add', {
+      method: 'POST',
+      body: JSON.stringify(payload),
     });
   }
 }

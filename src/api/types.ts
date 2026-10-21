@@ -1,4 +1,4 @@
-import { Item, ItemType, JobStatus, Source, Profile, AppSettings, HubStats } from '../types';
+import { Item, ItemType, JobStatus, Source, Profile, AppSettings, HubStats, ProductHuntDailyDigest, Project } from '../types';
 
 export interface ItemsFilter {
   type?: ItemType | 'all';
@@ -53,5 +53,9 @@ export interface ApiClient {
   syncTelegramProjects(): Promise<{ synced_count: number; new_projects: any[]; message: string }>;
   simulateTelegramProject(text?: string): Promise<{ project: any; message: string }>;
   getTelegramStatus(): Promise<{ bot_username: string; owner_chat_id: string; connected: boolean }>;
+  
+  getProductHuntDaily(date?: string): Promise<ProductHuntDailyDigest>;
+  refreshProductHuntDaily(): Promise<{ success: boolean; digest: ProductHuntDailyDigest; message: string }>;
+  quickAddToolOrProject(payload: { title?: string; text: string; url?: string; category?: string }): Promise<{ project: Project; message: string }>;
 }
 

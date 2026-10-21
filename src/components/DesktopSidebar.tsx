@@ -2,6 +2,7 @@ import React from 'react';
 import {
   Inbox,
   Compass,
+  Rocket,
   FolderKanban,
   Search,
   Bookmark,
@@ -36,13 +37,18 @@ export const DesktopSidebar: React.FC = () => {
     },
     {
       id: 'jobs',
-      label: 'رادار فرصت‌های شغلی',
+      label: 'رادار شغل (جابینجا و جاب‌ویژن)',
       icon: Compass,
       badge: stats?.high_match_jobs,
     },
     {
+      id: 'producthunt',
+      label: 'دایجست Product Hunt',
+      icon: Rocket,
+    },
+    {
       id: 'projects',
-      label: 'پروژه‌های منتخب',
+      label: 'ابزارها، پروژه‌ها و تلگرام',
       icon: FolderKanban,
       badge: stats?.projects_count || 5,
     },

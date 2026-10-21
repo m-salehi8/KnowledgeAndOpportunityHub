@@ -5,8 +5,9 @@ export const translations = {
     
     // Tabs
     tab_inbox: 'صندوق ورودی',
-    tab_jobs: 'رادار فرصت‌ها',
-    tab_projects: 'پروژه‌های منتخب',
+    tab_jobs: 'رادار شغل',
+    tab_producthunt: 'پروداکت هانت',
+    tab_projects: 'ابزارها و پروژه‌ها',
     tab_search: 'جستجو',
     tab_saved: 'نشان‌شده‌ها',
     tab_settings: 'تنظیمات',
@@ -17,6 +18,7 @@ export const translations = {
     type_news: 'اخبار روزانه',
     type_job: 'فرصت‌های شغلی',
     type_email: 'ایمیل هوشمند',
+    type_producthunt: 'پروداکت هانت',
 
     // Job statuses
     status_new: 'جدید',
@@ -116,7 +118,8 @@ export const translations = {
     // Tabs
     tab_inbox: 'Inbox',
     tab_jobs: 'Job Radar',
-    tab_projects: 'Featured Projects',
+    tab_producthunt: 'Product Hunt',
+    tab_projects: 'Tools & Projects',
     tab_search: 'Search',
     tab_saved: 'Saved',
     tab_settings: 'Settings',
@@ -127,6 +130,7 @@ export const translations = {
     type_news: 'News Digest',
     type_job: 'Job Matches',
     type_email: 'Smart Email',
+    type_producthunt: 'Product Hunt',
 
     // Job statuses
     status_new: 'New',
