@@ -4,6 +4,7 @@ import { Item } from '../../types';
 import { useApp } from '../../context/AppContext';
 import { api } from '../../api/client';
 import { ItemCard } from '../ItemCard';
+import { toPersianDigits } from '../../utils/format';
 
 export const SavedView: React.FC = () => {
   const { lang, t, setSelectedItem, reloadTrigger, showToast } = useApp();
@@ -57,74 +58,70 @@ export const SavedView: React.FC = () => {
   };
 
   return (
-    <div className="space-y-4 pb-24 px-4">
-      {/* Segment Switcher */}
-      <div className="flex items-center gap-1 p-1 bg-slate-200/80 dark:bg-[#151520] rounded-2xl border border-slate-300/60 dark:border-white/5">
-        <button
-          onClick={() => setActiveSegment('favorites')}
-          className={`flex-1 flex items-center justify-center gap-2 py-2 text-xs font-semibold rounded-xl transition-all active:scale-98 ${
-            activeSegment === 'favorites'
-              ? 'bg-white dark:bg-amber-500/20 text-amber-600 dark:text-amber-400 border border-amber-200 dark:border-amber-500/30 shadow-sm'
-              : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
-          }`}
-        >
-          <Star className="w-3.5 h-3.5 fill-current" />
-          <span>{lang === 'fa' ? 'نشان‌شده‌ها (علاقه‌مندی‌ها)' : 'Favorites'}</span>
-        </button>
+    <div className="space-y-4 pb-4">
+      {/* Segmented glass switcher */}
+      <div className="px-4">
+        <div className="ios-glass-pill flex items-center gap-1 p-1">
+          <button
+            type="button"
+            onClick={() => setActiveSegment('favorites')}
+            className={`ios-press flex flex-1 items-center justify-center gap-2 rounded-full py-2 text-[10.5px] font-bold transition-all ${
+              activeSegment === 'favorites'
+                ? 'bg-amber-400/20 text-amber-100 shadow-[inset_0_1px_0_rgba(255,255,255,0.4),0_4px_14px_-6px_rgba(251,191,36,0.55)]'
+                : 'text-slate-400'
+            }`}
+          >
+            <Star className="h-3.5 w-3.5 fill-current" />
+            <span>نشان‌شده‌ها</span>
+          </button>
 
-        <button
-          onClick={() => setActiveSegment('archive')}
-          className={`flex-1 flex items-center justify-center gap-2 py-2 text-xs font-semibold rounded-xl transition-all active:scale-98 ${
-            activeSegment === 'archive'
-              ? 'bg-white dark:bg-white/10 text-slate-800 dark:text-white border border-slate-300 dark:border-white/10 shadow-sm'
-              : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
-          }`}
-        >
-          <Archive className="w-3.5 h-3.5" />
-          <span>{lang === 'fa' ? 'بایگانی (آرشیو)' : 'Archived'}</span>
-        </button>
+          <button
+            type="button"
+            onClick={() => setActiveSegment('archive')}
+            className={`ios-press flex flex-1 items-center justify-center gap-2 rounded-full py-2 text-[10.5px] font-bold transition-all ${
+              activeSegment === 'archive'
+                ? 'bg-white/80 text-slate-900 shadow-[inset_0_1px_0_rgba(255,255,255,0.9),0_4px_14px_-6px_rgba(15,23,42,0.18)] dark:bg-white/15 dark:text-white dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.35)]'
+                : 'text-slate-400'
+            }`}
+          >
+            <Archive className="h-3.5 w-3.5" />
+            <span>بایگانی</span>
+          </button>
+        </div>
       </div>
 
-      {/* Counter */}
-      <div className="flex items-center justify-between text-xs text-slate-500 dark:text-slate-400 px-1">
-        <span>
-          {items.length} {lang === 'fa' ? 'مورد ذخیره شده' : 'items'}
-        </span>
+      <div className="flex items-center justify-between px-4 text-[10px] text-slate-500 dark:text-slate-400">
+        <span>{toPersianDigits(items.length)} مورد</span>
+        <span className="text-amber-300/80">{activeSegment === 'favorites' ? 'علاقه‌مندی‌ها' : 'آرشیو'}</span>
       </div>
 
-      {/* Items List */}
-      <div>
+      <div className="px-4">
         {loading ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
-            {[1, 2, 3, 4].map((n) => (
-              <div
-                key={n}
-                className="p-4 rounded-2xl bg-white dark:bg-[#14141E] border border-slate-200 dark:border-white/5 animate-pulse h-28 shadow-sm"
-              />
+          <div className="space-y-3">
+            {[1, 2, 3].map((n) => (
+              <div key={n} className="ios-glass-card ios-skeleton h-[140px] rounded-[26px]" />
             ))}
           </div>
         ) : items.length === 0 ? (
-          <div className="p-8 text-center rounded-3xl bg-white dark:bg-[#14141E] border border-slate-200 dark:border-white/5 space-y-2 shadow-sm">
-            <div className="w-12 h-12 rounded-2xl bg-amber-500/10 text-amber-500 dark:text-amber-400 flex items-center justify-center mx-auto mb-3">
-              <Bookmark className="w-6 h-6" />
+          <div className="ios-glass-card ios-specular px-6 py-9 text-center">
+            <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-2xl border border-amber-300/20 bg-amber-400/10 text-amber-300">
+              <Bookmark className="h-6 w-6" />
             </div>
             <h3 className="text-sm font-bold text-slate-900 dark:text-white">{t.empty_saved_title}</h3>
-            <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed max-w-xs mx-auto">
+            <p className="mx-auto mt-1 max-w-xs text-[10.5px] leading-relaxed text-slate-500 dark:text-slate-400">
               {t.empty_saved_desc}
             </p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
-            {items.map((item) => (
-              <ItemCard
-                key={item.id}
-                item={item}
-                onFavoriteToggle={handleFavoriteToggle}
-                onArchiveToggle={handleArchiveToggle}
-                onSelect={setSelectedItem}
-              />
-            ))}
-          </div>
+          items.map((item) => (
+            <ItemCard
+              key={item.id}
+              item={item}
+              onFavoriteToggle={handleFavoriteToggle}
+              onArchiveToggle={handleArchiveToggle}
+              onSelect={setSelectedItem}
+            />
+          ))
         )}
       </div>
     </div>

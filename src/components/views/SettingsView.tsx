@@ -21,6 +21,7 @@ import { Profile, Source, AppSettings } from '../../types';
 import { useApp } from '../../context/AppContext';
 import { api } from '../../api/client';
 import { PushNotificationBanner } from '../PushNotificationBanner';
+import { formatPercent } from '../../utils/format';
 
 export const SettingsView: React.FC = () => {
   const { lang, t, showToast } = useApp();
@@ -228,14 +229,14 @@ export const SettingsView: React.FC = () => {
   }
 
   return (
-    <div className="space-y-6 pb-28 px-4">
+    <div className="space-y-4 px-4 pb-4">
       {/* Push Notification Opt-in Banner */}
       <PushNotificationBanner />
 
       {/* Profile & Job Radar Criteria */}
-      <div className="p-5 rounded-3xl bg-white dark:bg-[#14141E] border border-slate-200/80 dark:border-white/5 space-y-4 shadow-sm">
+      <div className="ios-glass-card p-5 space-y-4">
         <div className="flex items-center gap-2.5">
-          <div className="w-8 h-8 rounded-xl bg-indigo-500/15 dark:bg-indigo-600/20 text-indigo-600 dark:text-indigo-400 flex items-center justify-center">
+          <div className="w-9 h-9 rounded-2xl border border-indigo-400/30 bg-indigo-400/12 text-indigo-600 dark:text-indigo-300 flex items-center justify-center backdrop-blur-md shadow-[inset_0_1px_0_rgba(255,255,255,0.25)]">
             <User className="w-4 h-4" />
           </div>
           <div>
@@ -253,7 +254,7 @@ export const SettingsView: React.FC = () => {
               type="text"
               value={profile.full_name}
               onChange={(e) => setProfile({ ...profile, full_name: e.target.value })}
-              className="w-full h-10 px-3 bg-slate-50 dark:bg-black/40 border border-slate-200 dark:border-white/10 rounded-xl text-slate-900 dark:text-white focus:outline-none focus:border-indigo-500"
+              className="ios-field w-full h-10 px-3 rounded-2xl text-xs"
             />
           </div>
 
@@ -263,7 +264,7 @@ export const SettingsView: React.FC = () => {
               {profile.skills.map((skill) => (
                 <span
                   key={skill}
-                  className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-indigo-50 dark:bg-indigo-500/15 text-indigo-700 dark:text-indigo-300 text-xs border border-indigo-200 dark:border-indigo-500/20 font-medium"
+                  className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full border border-indigo-400/30 bg-indigo-400/12 text-indigo-700 dark:text-indigo-200 text-xs font-medium backdrop-blur-md shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]"
                 >
                   <span>{skill}</span>
                   <button
@@ -288,19 +289,19 @@ export const SettingsView: React.FC = () => {
                   }
                 }}
                 placeholder={lang === 'fa' ? 'مهارت جدید (مثلاً FastAPI)...' : 'New skill...'}
-                className="flex-1 h-9 px-3 bg-slate-50 dark:bg-black/40 border border-slate-200 dark:border-white/10 rounded-xl text-slate-900 dark:text-white focus:outline-none focus:border-indigo-500"
+                className="ios-field flex-1 h-10 px-3 rounded-2xl text-xs"
               />
               <button
                 type="button"
                 onClick={addSkill}
-                className="px-3 h-9 rounded-xl bg-slate-200 dark:bg-white/10 hover:bg-slate-300 dark:hover:bg-white/20 text-slate-800 dark:text-white font-medium"
+                className="ios-action-pill ios-press shrink-0 justify-center px-4"
               >
-                +
+                <Plus className="w-4 h-4" />
               </button>
             </div>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 gap-3">
             <div>
               <label className="block text-slate-600 dark:text-slate-400 mb-1 font-medium">
                 {t.remote_pref_label}
@@ -313,7 +314,7 @@ export const SettingsView: React.FC = () => {
                     remote_preference: e.target.value as Profile['remote_preference'],
                   })
                 }
-                className="w-full h-10 px-3 bg-slate-50 dark:bg-black/40 border border-slate-200 dark:border-white/10 rounded-xl text-slate-900 dark:text-white focus:outline-none focus:border-indigo-500"
+                className="ios-field w-full h-10 px-3 rounded-2xl text-xs"
               >
                 <option value="remote_only">{t.remote_only}</option>
                 <option value="hybrid">{t.hybrid}</option>
@@ -331,7 +332,7 @@ export const SettingsView: React.FC = () => {
                 onChange={(e) =>
                   setProfile({ ...profile, min_salary_usd: Number(e.target.value) })
                 }
-                className="w-full h-10 px-3 bg-slate-50 dark:bg-black/40 border border-slate-200 dark:border-white/10 rounded-xl text-slate-900 dark:text-white font-sans focus:outline-none focus:border-indigo-500"
+                className="ios-field w-full h-10 px-3 rounded-2xl text-xs font-sans"
               />
             </div>
           </div>
@@ -342,7 +343,7 @@ export const SettingsView: React.FC = () => {
               {profile.keywords_include.map((kw) => (
                 <span
                   key={kw}
-                  className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-emerald-50 dark:bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 text-xs border border-emerald-200 dark:border-emerald-500/20 font-medium"
+                  className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full border border-emerald-400/30 bg-emerald-400/12 text-emerald-700 dark:text-emerald-200 text-xs font-medium backdrop-blur-md shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]"
                 >
                   <span>{kw}</span>
                   <button
@@ -367,14 +368,14 @@ export const SettingsView: React.FC = () => {
                   }
                 }}
                 placeholder={lang === 'fa' ? 'کلمه کلیدی مثبت...' : 'Target keyword...'}
-                className="flex-1 h-9 px-3 bg-slate-50 dark:bg-black/40 border border-slate-200 dark:border-white/10 rounded-xl text-slate-900 dark:text-white focus:outline-none"
+                className="ios-field flex-1 h-10 px-3 rounded-2xl text-xs"
               />
               <button
                 type="button"
                 onClick={addKeywordInclude}
-                className="px-3 h-9 rounded-xl bg-slate-200 dark:bg-white/10 hover:bg-slate-300 dark:hover:bg-white/20 text-slate-800 dark:text-white font-medium"
+                className="ios-action-pill ios-press shrink-0 justify-center px-4"
               >
-                +
+                <Plus className="w-4 h-4" />
               </button>
             </div>
           </div>
@@ -385,7 +386,7 @@ export const SettingsView: React.FC = () => {
               {profile.keywords_exclude.map((kw) => (
                 <span
                   key={kw}
-                  className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-rose-50 dark:bg-rose-500/15 text-rose-700 dark:text-rose-300 text-xs border border-rose-200 dark:border-rose-500/20 font-medium"
+                  className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full border border-rose-400/30 bg-rose-400/12 text-rose-700 dark:text-rose-200 text-xs font-medium backdrop-blur-md shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]"
                 >
                   <span>{kw}</span>
                   <button
@@ -410,21 +411,21 @@ export const SettingsView: React.FC = () => {
                   }
                 }}
                 placeholder={lang === 'fa' ? 'کلمه منفی (عدم تمایل)...' : 'Excluded keyword...'}
-                className="flex-1 h-9 px-3 bg-slate-50 dark:bg-black/40 border border-slate-200 dark:border-white/10 rounded-xl text-slate-900 dark:text-white focus:outline-none"
+                className="ios-field flex-1 h-10 px-3 rounded-2xl text-xs"
               />
               <button
                 type="button"
                 onClick={addKeywordExclude}
-                className="px-3 h-9 rounded-xl bg-slate-200 dark:bg-white/10 hover:bg-slate-300 dark:hover:bg-white/20 text-slate-800 dark:text-white font-medium"
+                className="ios-action-pill ios-press shrink-0 justify-center px-4"
               >
-                +
+                <Plus className="w-4 h-4" />
               </button>
             </div>
           </div>
 
           <button
             type="submit"
-            className="w-full h-11 rounded-xl bg-gradient-to-r from-indigo-600 to-violet-600 text-white font-bold text-xs flex items-center justify-center gap-2 shadow-lg shadow-indigo-600/25 active:scale-98 transition-all"
+            className="ios-press w-full h-11 rounded-full bg-gradient-to-r from-indigo-500 to-violet-500 text-white font-bold text-xs flex items-center justify-center gap-2 border border-white/20 shadow-lg shadow-indigo-600/25 backdrop-blur-md transition-all"
           >
             <Save className="w-4 h-4" />
             <span>{t.save_profile}</span>
@@ -433,13 +434,13 @@ export const SettingsView: React.FC = () => {
       </div>
 
       {/* Sources Manager */}
-      <div className="p-5 rounded-3xl bg-white dark:bg-[#14141E] border border-slate-200/80 dark:border-white/5 space-y-4 shadow-sm">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-xl bg-purple-500/15 dark:bg-purple-600/20 text-purple-600 dark:text-purple-400 flex items-center justify-center">
+      <div className="ios-glass-card p-5 space-y-4">
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2.5 min-w-0">
+            <div className="w-9 h-9 rounded-2xl border border-purple-400/30 bg-purple-400/12 text-purple-600 dark:text-purple-300 flex items-center justify-center backdrop-blur-md shadow-[inset_0_1px_0_rgba(255,255,255,0.25)]">
               <Rss className="w-4 h-4" />
             </div>
-            <div>
+            <div className="min-w-0">
               <h3 className="text-sm font-bold text-slate-900 dark:text-white">{t.sources_title}</h3>
               <p className="text-[11px] text-slate-500 dark:text-slate-400">{t.sources_desc}</p>
             </div>
@@ -447,7 +448,7 @@ export const SettingsView: React.FC = () => {
 
           <button
             onClick={() => setIsAddingSource(!isAddingSource)}
-            className="flex items-center gap-1 px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-white/10 hover:bg-slate-200 dark:hover:bg-white/20 text-slate-800 dark:text-white text-xs font-semibold"
+            className="ios-action-pill ios-press shrink-0"
           >
             <Plus className="w-3.5 h-3.5" />
             <span>{t.add_source}</span>
@@ -458,7 +459,7 @@ export const SettingsView: React.FC = () => {
         {isAddingSource && (
           <form
             onSubmit={handleAddSource}
-            className="p-3.5 rounded-2xl bg-slate-50 dark:bg-black/50 border border-indigo-200 dark:border-indigo-500/30 space-y-3 text-xs"
+            className="ios-glass-subtile p-3.5 space-y-3 text-xs"
           >
             <div>
               <label className="block text-slate-600 dark:text-slate-400 mb-1">{t.source_name}</label>
@@ -467,7 +468,7 @@ export const SettingsView: React.FC = () => {
                 value={newSourceName}
                 onChange={(e) => setNewSourceName(e.target.value)}
                 placeholder="TechCrunch AI"
-                className="w-full h-9 px-3 bg-white dark:bg-black/40 border border-slate-200 dark:border-white/10 rounded-xl text-slate-900 dark:text-white focus:outline-none"
+                className="ios-field w-full h-10 px-3 rounded-2xl text-xs"
                 required
               />
             </div>
@@ -478,7 +479,7 @@ export const SettingsView: React.FC = () => {
                 value={newSourceUrl}
                 onChange={(e) => setNewSourceUrl(e.target.value)}
                 placeholder="https://example.com/rss"
-                className="w-full h-9 px-3 bg-white dark:bg-black/40 border border-slate-200 dark:border-white/10 rounded-xl text-slate-900 dark:text-white focus:outline-none"
+                className="ios-field w-full h-10 px-3 rounded-2xl text-xs"
                 required
               />
             </div>
@@ -487,7 +488,7 @@ export const SettingsView: React.FC = () => {
               <select
                 value={newSourceKind}
                 onChange={(e) => setNewSourceKind(e.target.value as Source['kind'])}
-                className="w-full h-9 px-3 bg-white dark:bg-black/40 border border-slate-200 dark:border-white/10 rounded-xl text-slate-900 dark:text-white focus:outline-none"
+                className="ios-field w-full h-10 px-3 rounded-2xl text-xs"
               >
                 <option value="rss">RSS Feed</option>
                 <option value="job_api">Job Board API</option>
@@ -498,14 +499,14 @@ export const SettingsView: React.FC = () => {
             <div className="flex gap-2">
               <button
                 type="submit"
-                className="flex-1 h-9 rounded-xl bg-indigo-600 text-white font-medium"
+                className="ios-press flex-1 h-10 rounded-full bg-indigo-500/90 hover:bg-indigo-500 text-white font-semibold text-xs flex items-center justify-center border border-white/20 shadow-lg shadow-indigo-600/25 backdrop-blur-md"
               >
                 {lang === 'fa' ? 'افزودن' : 'Add'}
               </button>
               <button
                 type="button"
                 onClick={() => setIsAddingSource(false)}
-                className="px-4 h-9 rounded-xl bg-slate-200 dark:bg-white/10 text-slate-700 dark:text-slate-300"
+                className="ios-action-pill ios-press justify-center px-4"
               >
                 {lang === 'fa' ? 'انصراف' : 'Cancel'}
               </button>
@@ -518,16 +519,16 @@ export const SettingsView: React.FC = () => {
           {sources.map((src) => (
             <div
               key={src.id}
-              className="p-3 rounded-2xl bg-slate-50 dark:bg-black/30 border border-slate-200/80 dark:border-white/5 flex items-center justify-between gap-3 text-xs"
+              className="ios-glass-subtile p-3 flex items-center justify-between gap-3 text-xs"
             >
               <div className="truncate">
                 <div className="flex items-center gap-2">
                   <span className="font-bold text-slate-900 dark:text-white truncate">{src.name}</span>
-                  <span className="text-[10px] px-1.5 py-0.5 rounded bg-slate-200 dark:bg-white/10 text-slate-700 dark:text-slate-300 font-mono">
+                  <span className="text-[10px] px-2 py-0.5 rounded-full border border-slate-300/60 bg-slate-500/10 dark:border-white/15 dark:bg-white/10 text-slate-700 dark:text-slate-200 font-mono backdrop-blur-md">
                     {src.kind}
                   </span>
                 </div>
-                <p className="text-[11px] text-slate-500 font-mono truncate mt-0.5">
+                <p className="text-[11px] text-slate-500 dark:text-slate-400 font-mono truncate mt-0.5">
                   {src.url}
                 </p>
               </div>
@@ -535,8 +536,8 @@ export const SettingsView: React.FC = () => {
               <div className="flex items-center gap-2 shrink-0">
                 <button
                   onClick={() => handleToggleSource(src)}
-                  className={`text-lg transition-colors ${
-                    src.enabled ? 'text-indigo-600 dark:text-indigo-400' : 'text-slate-400 dark:text-slate-600'
+                  className={`ios-icon-button ios-press ${
+                    src.enabled ? 'text-indigo-600 dark:text-indigo-300' : 'text-slate-400 dark:text-slate-500'
                   }`}
                   title={src.enabled ? 'Enabled' : 'Disabled'}
                 >
@@ -548,7 +549,7 @@ export const SettingsView: React.FC = () => {
                 </button>
                 <button
                   onClick={() => handleDeleteSource(src.id)}
-                  className="w-7 h-7 rounded-lg bg-slate-200 dark:bg-white/5 flex items-center justify-center text-slate-400 hover:text-rose-500 transition-colors"
+                  className="ios-icon-button ios-press text-slate-400 hover:text-rose-500"
                   title="Delete"
                 >
                   <Trash2 className="w-3.5 h-3.5" />
@@ -560,9 +561,9 @@ export const SettingsView: React.FC = () => {
       </div>
 
       {/* Scheduler & Push Alert Thresholds */}
-      <div className="p-5 rounded-3xl bg-white dark:bg-[#14141E] border border-slate-200/80 dark:border-white/5 space-y-4 shadow-sm">
+      <div className="ios-glass-card p-5 space-y-4">
         <div className="flex items-center gap-2.5">
-          <div className="w-8 h-8 rounded-xl bg-amber-500/15 dark:bg-amber-600/20 text-amber-600 dark:text-amber-400 flex items-center justify-center">
+          <div className="w-9 h-9 rounded-2xl border border-amber-400/30 bg-amber-400/12 text-amber-600 dark:text-amber-300 flex items-center justify-center backdrop-blur-md shadow-[inset_0_1px_0_rgba(255,255,255,0.25)]">
             <Sliders className="w-4 h-4" />
           </div>
           <div>
@@ -589,7 +590,7 @@ export const SettingsView: React.FC = () => {
                 onChange={(e) =>
                   setSettings({ ...settings, news_digest_time: e.target.value })
                 }
-                className="w-full h-10 px-3 bg-slate-50 dark:bg-black/40 border border-slate-200 dark:border-white/10 rounded-xl text-slate-900 dark:text-white font-mono focus:outline-none"
+                className="ios-field w-full h-10 px-3 rounded-2xl text-xs font-mono"
               />
             </div>
             <div>
@@ -602,7 +603,7 @@ export const SettingsView: React.FC = () => {
                 onChange={(e) =>
                   setSettings({ ...settings, job_radar_time: e.target.value })
                 }
-                className="w-full h-10 px-3 bg-slate-50 dark:bg-black/40 border border-slate-200 dark:border-white/10 rounded-xl text-slate-900 dark:text-white font-mono focus:outline-none"
+                className="ios-field w-full h-10 px-3 rounded-2xl text-xs font-mono"
               />
             </div>
           </div>
@@ -610,7 +611,7 @@ export const SettingsView: React.FC = () => {
           <div>
             <div className="flex justify-between text-slate-600 dark:text-slate-400 mb-1 font-medium">
               <span>{lang === 'fa' ? 'حداقل امتیاز برای ارسال Push Notification' : 'Min Match Score for Push'}</span>
-              <span className="font-sans text-indigo-600 dark:text-white font-bold">{settings.min_job_score_notify}%</span>
+              <span className="font-sans text-indigo-600 dark:text-white font-bold">{formatPercent(settings.min_job_score_notify)}</span>
             </div>
             <input
               type="range"
@@ -628,16 +629,24 @@ export const SettingsView: React.FC = () => {
       </div>
 
       {/* Telegram Bot Automated Project Extraction */}
-      <div className="p-5 rounded-3xl bg-white dark:bg-[#14141E] border border-sky-500/30 dark:border-sky-500/20 space-y-4 shadow-sm relative overflow-hidden">
-        <div className="absolute top-0 right-0 left-0 h-1 bg-gradient-to-r from-sky-400 via-indigo-500 to-purple-500" />
-        
+      <div className="ios-glass-card ios-specular p-5 space-y-4 relative overflow-hidden">
+        <div className="absolute top-0 right-0 left-0 h-1 bg-gradient-to-r from-sky-400 via-cyan-400 to-indigo-500" />
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-0"
+          style={{
+            background:
+              'linear-gradient(155deg, rgba(56,189,248,0.12) 0%, transparent 42%, rgba(34,211,238,0.06) 100%)',
+          }}
+        />
+
         <div className="flex items-start justify-between gap-3">
-          <div className="flex items-center gap-2.5">
-            <div className="w-9 h-9 rounded-xl bg-sky-500/15 dark:bg-sky-500/20 text-sky-600 dark:text-sky-400 flex items-center justify-center">
+          <div className="flex items-center gap-2.5 min-w-0 flex-1">
+            <div className="w-9 h-9 shrink-0 rounded-2xl border border-sky-400/30 bg-sky-400/12 text-sky-600 dark:text-sky-300 flex items-center justify-center backdrop-blur-md shadow-[inset_0_1px_0_rgba(255,255,255,0.25)]">
               <Send className="w-4 h-4 -rotate-12" />
             </div>
-            <div>
-              <div className="flex items-center gap-2">
+            <div className="min-w-0">
+              <div className="flex flex-wrap items-center gap-2">
                 <h3 className="text-sm font-bold text-slate-900 dark:text-white">
                   {lang === 'fa' ? 'ربات تلگرام ثبت و تحلیل پروژه (Telegram Bot)' : 'Telegram Project Ingestion Bot'}
                 </h3>
@@ -658,7 +667,7 @@ export const SettingsView: React.FC = () => {
             href="https://t.me/knowledgehubpwabot"
             target="_blank"
             rel="noopener noreferrer"
-            className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-sky-500 text-white text-xs font-semibold hover:bg-sky-600 transition-colors shadow-sm"
+            className="ios-action-pill ios-press shrink-0 text-sky-700 dark:text-sky-200"
           >
             <span>{lang === 'fa' ? 'ورود به ربات' : 'Open Bot'}</span>
             <ExternalLink className="w-3.5 h-3.5" />
@@ -666,8 +675,8 @@ export const SettingsView: React.FC = () => {
         </div>
 
         {/* Credentials & status pills */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 text-xs">
-          <div className="p-2.5 rounded-xl bg-slate-50 dark:bg-black/30 border border-slate-200 dark:border-white/5">
+        <div className="grid grid-cols-1 gap-2.5 text-xs">
+          <div className="ios-glass-subtile p-2.5">
             <span className="block text-[10px] text-slate-400 mb-0.5">
               {lang === 'fa' ? 'آیدی ربات تلگرام' : 'Bot Username'}
             </span>
@@ -686,7 +695,7 @@ export const SettingsView: React.FC = () => {
             </div>
           </div>
 
-          <div className="p-2.5 rounded-xl bg-slate-50 dark:bg-black/30 border border-slate-200 dark:border-white/5">
+          <div className="ios-glass-subtile p-2.5">
             <span className="block text-[10px] text-slate-400 mb-0.5">
               {lang === 'fa' ? 'شناسه مجاز مالک (Chat ID)' : 'Authorized Owner ID'}
             </span>
@@ -695,7 +704,7 @@ export const SettingsView: React.FC = () => {
             </span>
           </div>
 
-          <div className="p-2.5 rounded-xl bg-slate-50 dark:bg-black/30 border border-slate-200 dark:border-white/5">
+          <div className="ios-glass-subtile p-2.5">
             <span className="block text-[10px] text-slate-400 mb-0.5">
               {lang === 'fa' ? 'موتور استخراج هوشمند' : 'Extraction Engine'}
             </span>
@@ -707,7 +716,7 @@ export const SettingsView: React.FC = () => {
         </div>
 
         {/* Instructions */}
-        <div className="p-3 rounded-2xl bg-sky-500/5 dark:bg-sky-500/10 border border-sky-500/20 text-[11px] text-slate-700 dark:text-slate-300 space-y-1.5">
+        <div className="ios-glass-subtile p-3 text-[11px] text-slate-700 dark:text-slate-300 space-y-1.5">
           <div className="font-bold text-sky-800 dark:text-sky-300 flex items-center gap-1.5">
             <CheckCircle2 className="w-3.5 h-3.5" />
             <span>{lang === 'fa' ? 'نحوه کارکرد ارسال پروژه از تلگرام:' : 'How Telegram project extraction works:'}</span>
@@ -732,12 +741,12 @@ export const SettingsView: React.FC = () => {
         </div>
 
         {/* Action buttons */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
+        <div className="grid grid-cols-1 gap-2 pt-1">
           <button
             type="button"
             onClick={handleSyncTelegram}
             disabled={syncingTelegram}
-            className="h-10 px-4 rounded-xl bg-sky-600 hover:bg-sky-700 active:scale-98 disabled:opacity-50 text-white text-xs font-semibold flex items-center justify-center gap-2 transition-all shadow-sm"
+            className="ios-press h-10 px-4 rounded-full bg-sky-500/85 hover:bg-sky-500 disabled:opacity-50 text-white text-xs font-semibold flex items-center justify-center gap-2 border border-sky-200/30 backdrop-blur-md transition-all shadow-lg shadow-sky-500/20"
           >
             <RefreshCw className={`w-3.5 h-3.5 ${syncingTelegram ? 'animate-spin' : ''}`} />
             <span>
@@ -751,7 +760,7 @@ export const SettingsView: React.FC = () => {
             type="button"
             onClick={handleSimulateTelegram}
             disabled={simulatingTelegram}
-            className="h-10 px-4 rounded-xl bg-slate-100 dark:bg-white/10 hover:bg-slate-200 dark:hover:bg-white/15 active:scale-98 disabled:opacity-50 text-slate-900 dark:text-white text-xs font-semibold flex items-center justify-center gap-2 transition-all border border-slate-200/80 dark:border-white/10"
+            className="ios-action-pill ios-press w-full justify-center disabled:opacity-50 text-slate-900 dark:text-white"
           >
             <Sparkles className={`w-3.5 h-3.5 text-purple-500 ${simulatingTelegram ? 'animate-pulse' : ''}`} />
             <span>
@@ -764,9 +773,9 @@ export const SettingsView: React.FC = () => {
       </div>
 
       {/* FastAPI Backend Connection Settings */}
-      <div className="p-5 rounded-3xl bg-white dark:bg-[#14141E] border border-slate-200/80 dark:border-white/5 space-y-4 shadow-sm">
+      <div className="ios-glass-card p-5 space-y-4">
         <div className="flex items-center gap-2.5">
-          <div className="w-8 h-8 rounded-xl bg-emerald-500/15 dark:bg-emerald-600/20 text-emerald-600 dark:text-emerald-400 flex items-center justify-center">
+          <div className="w-9 h-9 rounded-2xl border border-emerald-400/30 bg-emerald-400/12 text-emerald-600 dark:text-emerald-300 flex items-center justify-center backdrop-blur-md shadow-[inset_0_1px_0_rgba(255,255,255,0.25)]">
             <Server className="w-4 h-4" />
           </div>
           <div>
@@ -787,7 +796,7 @@ export const SettingsView: React.FC = () => {
               value={settings.api_url}
               onChange={(e) => setSettings({ ...settings, api_url: e.target.value })}
               placeholder="http://localhost:8000 or https://your-domain.com"
-              className="w-full h-10 px-3 bg-slate-50 dark:bg-black/40 border border-slate-200 dark:border-white/10 rounded-xl text-slate-900 dark:text-white font-mono focus:outline-none"
+              className="ios-field w-full h-10 px-3 rounded-2xl text-xs font-mono"
             />
           </div>
 
@@ -797,13 +806,13 @@ export const SettingsView: React.FC = () => {
               type="password"
               value={settings.app_token}
               onChange={(e) => setSettings({ ...settings, app_token: e.target.value })}
-              className="w-full h-10 px-3 bg-slate-50 dark:bg-black/40 border border-slate-200 dark:border-white/10 rounded-xl text-slate-900 dark:text-white font-mono focus:outline-none"
+              className="ios-field w-full h-10 px-3 rounded-2xl text-xs font-mono"
             />
           </div>
 
           <button
             onClick={handleSaveSettings}
-            className="w-full h-10 rounded-xl bg-slate-100 dark:bg-white/10 hover:bg-slate-200 dark:hover:bg-white/20 text-slate-900 dark:text-white font-semibold text-xs flex items-center justify-center gap-2 active:scale-98 transition-all border border-slate-200/80 dark:border-transparent"
+            className="ios-press w-full h-10 rounded-full bg-emerald-400/15 hover:bg-emerald-400/25 text-emerald-700 dark:text-emerald-200 font-semibold text-xs flex items-center justify-center gap-2 border border-emerald-300/30 backdrop-blur-md transition-all"
           >
             <Save className="w-4 h-4" />
             <span>{t.save_settings}</span>

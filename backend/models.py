@@ -122,3 +122,33 @@ class AppSettingsModel(Base):
     news_digest_time = Column(String(16), default="07:30")
     job_radar_time = Column(String(16), default="08:00")
     min_job_score_notify = Column(Integer, default=80)
+
+
+class Project(Base):
+    __tablename__ = "projects"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    title = Column(String(512), nullable=False)
+    short_desc = Column(Text, nullable=False, default="")
+    full_desc = Column(Text, nullable=False, default="")
+    category = Column(String(32), nullable=False, default="fullstack")
+    status = Column(String(32), nullable=False, default="active")
+    tech_stack = Column(JSON, default=list)
+    progress_percent = Column(Integer, default=70)
+    impact_score = Column(Integer, default=88)
+    ai_summary = Column(Text, default="")
+    github_url = Column(String(1024), nullable=True)
+    live_url = Column(String(1024), nullable=True)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), index=True)
+    is_favorite = Column(Boolean, default=True)
+    stars_count = Column(Integer, default=0)
+    source_channel = Column(String(32), default="telegram")
+    telegram_sender = Column(String(64), nullable=True)
+    telegram_dedupe = Column(String(256), unique=True, index=True, nullable=True)
+
+
+class BotState(Base):
+    __tablename__ = "bot_states"
+
+    key = Column(String(128), primary_key=True)
+    value = Column(Text, nullable=False, default="")

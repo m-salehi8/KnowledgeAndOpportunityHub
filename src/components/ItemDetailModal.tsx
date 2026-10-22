@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   X,
+  Check,
   ExternalLink,
   Share2,
   Star,
@@ -20,7 +21,7 @@ import {
 import { motion, AnimatePresence } from 'motion/react';
 import { Item, JobStatus } from '../types';
 import { useApp } from '../context/AppContext';
-import { formatExactDate } from '../utils/format';
+import { formatExactDate, normalizeTag } from '../utils/format';
 import { JobScoreRing } from './JobScoreRing';
 import { api } from '../api/client';
 
@@ -31,18 +32,24 @@ interface ItemDetailModalProps {
   onDelete: (id: string) => void;
 }
 
-export const ItemDetailModal: React.FC<ItemDetailModalProps> = ({
-  item,
-  onClose,
-  onUpdate,
-  onDelete,
-}) => {
+interface SheetProps {
+  item: Item;
+  onClose: () => void;
+  onUpdate: (updated: Item) => void;
+  onDelete: (id: string) => void;
+}
+
+const JobStatusMap: JobStatus[] = ['new', 'saved', 'applied', 'interview', 'rejected'];
+
+const Sheet: React.FC<SheetProps> = ({ item, onClose, onUpdate, onDelete }) => {
   const { lang, t, showToast } = useApp();
   const [newTagInput, setNewTagInput] = useState('');
   const [isAddingTag, setIsAddingTag] = useState(false);
   const [isReenriching, setIsReenriching] = useState(false);
-
-  if (!item) return null;
+  const [dragOffset, setDragOffset] = useState(0);
+  const [isDragging, setIsDragging] = useState(false);
+  const dragStart = useRef<{ y: number; t: number } | null>(null);
+  const dragLast = useRef<{ y: number; t: number } | null>(null);
 
   const handleFavoriteToggle = async () => {
     try {
@@ -106,7 +113,12 @@ export const ItemDetailModal: React.FC<ItemDetailModalProps> = ({
     try {
       const updated = await api.patchJobStatus(item.id, newStatus);
       onUpdate(updated);
-      showToast(lang === 'fa' ? `وضعیت به «${t[`status_${newStatus}` as keyof typeof t]}» تغییر یافت` : `Status updated to ${newStatus}`, 'success');
+      showToast(
+        lang === 'fa'
+          ? `وضعیت به «${t[`status_${newStatus}` as keyof typeof t]}» تغییر یافت`
+          : `Status updated to ${newStatus}`,
+        'success'
+      );
     } catch (err) {
       showToast((err as Error).message, 'error');
     }
@@ -114,7 +126,7 @@ export const ItemDetailModal: React.FC<ItemDetailModalProps> = ({
 
   const handleAddTag = async (e: React.FormEvent) => {
     e.preventDefault();
-    const tag = newTagInput.trim().replace(/^#/, '');
+    const tag = normalizeTag(newTagInput);
     if (!tag) return;
 
     if (item.tags.includes(tag)) {
@@ -124,8 +136,7 @@ export const ItemDetailModal: React.FC<ItemDetailModalProps> = ({
     }
 
     try {
-      const updatedTags = [...item.tags, tag];
-      const updated = await api.patchItem(item.id, { tags: updatedTags });
+      const updated = await api.patchItem(item.id, { tags: [...item.tags, tag] });
       onUpdate(updated);
       setNewTagInput('');
       setIsAddingTag(false);
@@ -136,8 +147,9 @@ export const ItemDetailModal: React.FC<ItemDetailModalProps> = ({
 
   const handleRemoveTag = async (tagToRemove: string) => {
     try {
-      const updatedTags = item.tags.filter((t) => t !== tagToRemove);
-      const updated = await api.patchItem(item.id, { tags: updatedTags });
+      const updated = await api.patchItem(item.id, {
+        tags: item.tags.filter((tag) => tag !== tagToRemove),
+      });
       onUpdate(updated);
     } catch (err) {
       showToast((err as Error).message, 'error');
@@ -166,344 +178,421 @@ export const ItemDetailModal: React.FC<ItemDetailModalProps> = ({
   const getSourceIcon = () => {
     switch (item.type) {
       case 'telegram':
-        return <Send className="w-4 h-4 text-sky-500 dark:text-sky-400" />;
+        return <Send className="h-3.5 w-3.5 text-sky-300" />;
       case 'news':
-        return <Newspaper className="w-4 h-4 text-emerald-500 dark:text-emerald-400" />;
+        return <Newspaper className="h-3.5 w-3.5 text-emerald-300" />;
       case 'job':
-        return <Compass className="w-4 h-4 text-indigo-500 dark:text-indigo-400" />;
+        return <Compass className="h-3.5 w-3.5 text-indigo-300" />;
       case 'email':
-        return <Mail className="w-4 h-4 text-amber-500 dark:text-amber-400" />;
+        return <Mail className="h-3.5 w-3.5 text-amber-300" />;
+      default:
+        return <Sparkles className="h-3.5 w-3.5 text-cyan-300" />;
     }
   };
 
-  const jobStatuses: JobStatus[] = ['new', 'saved', 'applied', 'interview', 'rejected'];
+  const sourceUrl = item.source_url || '';
+  const isAggregatedJobLink =
+    /jobinja\.ir\/jobs\?|jobvision\.ir\/jobs\?|remoteok\.com\/remote-|weworkremotely\.com\/categories\//.test(
+      sourceUrl
+    );
+  const ctaLabel = sourceUrl.includes('jobinja')
+    ? isAggregatedJobLink
+      ? 'جستجوی آگهی‌های مشابه در جابینجا'
+      : 'مشاهده آگهی در جابینجا'
+    : sourceUrl.includes('jobvision')
+    ? isAggregatedJobLink
+      ? 'جستجوی آگهی‌های مشابه در جاب‌ویژن'
+      : 'مشاهده آگهی در جاب‌ویژن'
+    : isAggregatedJobLink
+    ? 'مشاهده آگهی‌های مشابه'
+    : t.open_source;
+
+  const handleDragStart = (e: React.TouchEvent) => {
+    dragStart.current = { y: e.touches[0].clientY, t: Date.now() };
+    dragLast.current = { ...dragStart.current };
+    setIsDragging(true);
+  };
+
+  const handleDragMove = (e: React.TouchEvent) => {
+    if (!dragStart.current) return;
+    const y = e.touches[0].clientY;
+    dragLast.current = { y, t: Date.now() };
+    setDragOffset(Math.max(0, y - dragStart.current.y));
+  };
+
+  const handleDragEnd = () => {
+    const start = dragStart.current;
+    const last = dragLast.current;
+    const offset = start && last ? Math.max(0, last.y - start.y) : dragOffset;
+    let velocity = 0;
+    if (start && last && last.t > start.t) {
+      velocity = (last.y - start.y) / (last.t - start.t);
+    }
+    setIsDragging(false);
+    dragStart.current = null;
+    if (offset > 110 || (offset > 40 && velocity > 0.55)) {
+      onClose();
+      return;
+    }
+    setDragOffset(0);
+  };
 
   return (
-    <AnimatePresence>
-      <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center">
-        {/* Backdrop */}
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          onClick={onClose}
-          className="fixed inset-0 bg-black/60 dark:bg-black/80 backdrop-blur-sm"
-        />
+    <div className="fixed inset-0 z-[60] flex items-end justify-center">
+      {/* Backdrop */}
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        transition={{ duration: 0.28 }}
+        onClick={onClose}
+        className="absolute inset-0 bg-slate-950/55 backdrop-blur-md"
+      />
 
-        {/* Sheet Content */}
-        <motion.div
-          initial={{ y: '100%' }}
-          animate={{ y: 0 }}
-          exit={{ y: '100%' }}
-          transition={{ type: 'spring', damping: 28, stiffness: 320 }}
-          className="relative z-10 w-full max-w-lg max-h-[90dvh] flex flex-col bg-white dark:bg-[#12121A] text-slate-900 dark:text-slate-100 rounded-t-3xl sm:rounded-3xl border border-slate-200 dark:border-white/10 shadow-2xl overflow-hidden"
+      {/* Sheet */}
+      <motion.div
+        initial={{ y: '100%' }}
+        animate={{ y: 0 }}
+        exit={{ y: '100%' }}
+        transition={{ type: 'spring', damping: 30, stiffness: 320, mass: 0.9 }}
+        className="relative flex w-full max-w-[430px] flex-col"
+        role="dialog"
+        aria-modal="true"
+      >
+        <div
+          className="ios-glass-sheet flex max-h-[92dvh] w-full flex-col overflow-hidden rounded-t-[38px] text-slate-900 dark:text-slate-100"
+          style={{
+            transform: `translateY(${dragOffset}px)`,
+            transition: isDragging ? 'none' : 'transform 0.32s cubic-bezier(0.22, 1, 0.36, 1)',
+          }}
         >
-          {/* iOS Grab Handle */}
-          <div className="w-12 h-1.5 bg-slate-300 dark:bg-white/20 rounded-full mx-auto my-3 shrink-0" />
+        <div
+          className="shrink-0 touch-none"
+          onTouchStart={handleDragStart}
+          onTouchMove={handleDragMove}
+          onTouchEnd={handleDragEnd}
+          onTouchCancel={handleDragEnd}
+        >
+          <div className="ios-grabber" />
 
-          {/* Modal Header Actions */}
-          <div className="px-5 py-2 flex items-center justify-between border-b border-slate-100 dark:border-white/5 shrink-0">
-            <div className="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
-              {getSourceIcon()}
-              <span className="font-semibold text-slate-800 dark:text-slate-200">
-                {item.source_name}
-              </span>
-              <span aria-hidden="true" className="opacity-40">·</span>
-              <span>{item.category}</span>
-            </div>
-
-            <div className="flex items-center gap-1">
-              <button
-                onClick={handleFavoriteToggle}
-                className="w-9 h-9 flex items-center justify-center rounded-xl text-slate-400 hover:text-amber-500 dark:hover:text-amber-400 hover:bg-slate-100 dark:hover:bg-white/5 active:scale-90 transition-all"
-                title={t.favorite}
-              >
-                <Star
-                  className={`w-4 h-4 ${
-                    item.is_favorite ? 'text-amber-400 fill-amber-400' : ''
-                  }`}
-                />
-              </button>
-              <button
-                onClick={handleShare}
-                className="w-9 h-9 flex items-center justify-center rounded-xl text-slate-500 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-white/5 active:scale-90 transition-all"
-                title={t.share}
-              >
-                <Share2 className="w-4 h-4" />
-              </button>
-              <button
-                onClick={onClose}
-                className="w-9 h-9 flex items-center justify-center rounded-xl text-slate-500 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-white/5 active:scale-90 transition-all"
-                title="Close"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
+          {/* Header */}
+          <div className="flex shrink-0 items-center justify-between gap-2 px-5 pb-2">
+          <div className="flex min-w-0 items-center gap-2 text-[10px] text-slate-500 dark:text-slate-400">
+            {getSourceIcon()}
+            <span className="truncate font-semibold text-slate-800 dark:text-slate-200">
+              {item.source_name}
+            </span>
+            <span aria-hidden="true" className="opacity-40">·</span>
+            <span className="shrink-0">{item.category}</span>
           </div>
 
-          {/* Scrollable Modal Body */}
-          <div className="p-5 overflow-y-auto no-scrollbar space-y-5">
-            {/* Title & Date */}
-            <div>
-              <h2
-                dir="auto"
-                className="text-lg font-bold text-slate-900 dark:text-white leading-snug"
-              >
-                {item.title}
-              </h2>
-              <p className="text-xs text-slate-400 dark:text-slate-500 mt-1">
-                {formattedDate}
-              </p>
-            </div>
+          <div className="flex shrink-0 items-center gap-1.5">
+            <button
+              type="button"
+              onClick={handleFavoriteToggle}
+              className="ios-icon-button h-9 w-9"
+              title={t.favorite}
+            >
+              <Star className={`h-4 w-4 ${item.is_favorite ? 'fill-amber-400 text-amber-400' : ''}`} />
+            </button>
+            <button type="button" onClick={handleShare} className="ios-icon-button h-9 w-9" title={t.share}>
+              <Share2 className="h-4 w-4" />
+            </button>
+            <button type="button" onClick={onClose} className="ios-icon-button h-9 w-9" title="Close">
+              <X className="h-4.5 w-4.5" />
+            </button>
+          </div>
+          </div>
+        </div>
 
-            {/* Job Radar Specific Spotlight */}
-            {item.type === 'job' && item.job_meta && (
-              <div className="p-4 rounded-2xl bg-indigo-50/70 dark:bg-indigo-950/30 border border-indigo-200/80 dark:border-indigo-500/20 space-y-3">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h3 className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-1.5">
-                      <Briefcase className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
-                      <span>{item.job_meta.company}</span>
+        {/* Scrollable body */}
+        <div className="no-scrollbar min-h-0 flex-1 space-y-4 overflow-y-auto px-5 pb-4 pt-2">
+          <div>
+            <h2 dir="auto" className="text-[19px] font-bold leading-snug text-slate-900 dark:text-white">
+              {item.title}
+            </h2>
+            <p className="mt-1 text-[10px] text-slate-400 dark:text-slate-500">{formattedDate}</p>
+          </div>
+
+          {/* Job analysis */}
+          {item.type === 'job' && item.job_meta && (
+            <>
+              <div className="relative overflow-hidden rounded-[24px] border border-emerald-300/25 bg-gradient-to-br from-emerald-400/[0.16] via-teal-400/[0.08] to-cyan-400/[0.06] p-4 backdrop-blur-xl">
+                <div
+                  aria-hidden="true"
+                  className="pointer-events-none absolute -end-12 -top-12 h-32 w-32 rounded-full"
+                  style={{
+                    background: 'radial-gradient(circle, rgba(16,185,129,0.35), transparent 70%)',
+                    filter: 'blur(18px)',
+                  }}
+                />
+
+                <div className="relative flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-1.5 text-[10px] font-bold text-emerald-200">
+                      <Sparkles className="h-3.5 w-3.5" />
+                      <span>تحلیل هوش مصنوعی</span>
+                    </div>
+                    <h3 className="mt-1 flex items-center gap-1.5 text-sm font-bold text-slate-900 dark:text-white">
+                      <Briefcase className="h-4 w-4 text-emerald-300" />
+                      <span className="truncate">{item.job_meta.company}</span>
                     </h3>
-                    <div className="flex flex-wrap items-center gap-2 text-xs text-slate-600 dark:text-slate-300 mt-1">
-                      <span className="flex items-center gap-1">
-                        <MapPin className="w-3.5 h-3.5 text-slate-400" />
-                        {item.job_meta.location}
-                      </span>
-                      {item.job_meta.remote && (
-                        <span className="flex items-center gap-1 text-emerald-600 dark:text-emerald-400 font-medium">
-                          <Laptop className="w-3.5 h-3.5" />
-                          {t.remote}
-                        </span>
-                      )}
-                    </div>
+                    <p dir="auto" className="mt-2 text-[11px] leading-relaxed text-slate-600 dark:text-slate-300">
+                      {item.job_meta.match_reason}
+                    </p>
                   </div>
+                  <JobScoreRing score={item.job_meta.match_score} size={62} strokeWidth={4} />
+                </div>
+              </div>
 
-                  <div className="text-end">
-                    <JobScoreRing score={item.job_meta.match_score} size={50} strokeWidth={4} />
+              {/* Metadata row */}
+              <div className="grid grid-cols-3 gap-2">
+                <div className="ios-glass-subtile min-w-0 p-2.5 text-center">
+                  <Laptop className="mx-auto h-3.5 w-3.5 text-emerald-300" />
+                  <div className="mt-1 truncate text-[9.5px] font-semibold text-slate-200">
+                    {item.job_meta.remote ? 'دورکاری' : 'حضوری'}
                   </div>
                 </div>
-
-                {item.job_meta.salary_text && (
-                  <div className="flex items-center gap-1.5 text-xs text-indigo-700 dark:text-indigo-200 bg-indigo-100/60 dark:bg-indigo-500/10 px-3 py-1.5 rounded-xl border border-indigo-200 dark:border-indigo-500/20 font-medium">
-                    <DollarSign className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400 shrink-0" />
-                    <span>{item.job_meta.salary_text}</span>
+                <div className="ios-glass-subtile min-w-0 p-2.5 text-center">
+                  <MapPin className="mx-auto h-3.5 w-3.5 text-cyan-300" />
+                  <div dir="auto" className="mt-1 truncate text-[9.5px] font-semibold text-slate-200">
+                    {item.job_meta.location}
                   </div>
-                )}
+                </div>
+                <div className="ios-glass-subtile min-w-0 p-2.5 text-center">
+                  <DollarSign className="mx-auto h-3.5 w-3.5 text-amber-300" />
+                  <div dir="ltr" className="mt-1 truncate text-[9.5px] font-semibold text-slate-200">
+                    {item.job_meta.salary_text || 'توافقی'}
+                  </div>
+                </div>
+              </div>
 
-                {/* AI Rationale */}
-                <div className="text-xs text-slate-700 dark:text-slate-300 leading-relaxed border-t border-indigo-200/60 dark:border-indigo-500/20 pt-2.5">
-                  <span className="font-semibold text-indigo-600 dark:text-indigo-300 block mb-1">
-                    {t.match_reason}:
+              {/* Status selector */}
+              <div>
+                <div className="mb-2 flex items-center justify-between">
+                  <span className="text-[10.5px] font-semibold text-slate-500 dark:text-slate-400">
+                    وضعیت درخواست
                   </span>
-                  <p dir="auto">{item.job_meta.match_reason}</p>
+                  {item.job_meta.email_sent_to && (
+                    <span className="flex items-center gap-1 text-[9px] font-medium text-emerald-300">
+                      <Mail className="h-3 w-3" />
+                      ایمیل شد
+                    </span>
+                  )}
                 </div>
+                <div className="flex flex-wrap gap-1.5">
+                  {JobStatusMap.map((st) => {
+                    const isCurrent = item.job_meta?.status === st;
+                    return (
+                      <button
+                        key={st}
+                        type="button"
+                        onClick={() => handleJobStatusChange(st)}
+                        className={`ios-press rounded-full px-3 py-1.5 text-[10px] font-semibold transition-all ${
+                          isCurrent
+                            ? 'ios-glass-emerald'
+                            : 'border border-white/10 bg-white/[0.055] text-slate-400 backdrop-blur-md'
+                        }`}
+                      >
+                        {t[`status_${st}` as keyof typeof t]}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
 
-                {/* Key Requirements Badges */}
-                {item.job_meta.requirements && item.job_meta.requirements.length > 0 && (
-                  <div className="pt-2 border-t border-indigo-200/60 dark:border-indigo-500/20">
-                    <span className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 block mb-1.5">
-                      {lang === 'fa' ? 'نیازمندی‌های کلیدی موقعیت:' : 'Key Requirements:'}
-                    </span>
-                    <div className="flex flex-wrap gap-1.5">
-                      {item.job_meta.requirements.map((req, i) => (
-                        <span
-                          key={i}
-                          className="px-2.5 py-1 rounded-lg bg-indigo-500/10 text-indigo-700 dark:text-indigo-300 text-[11px] font-medium border border-indigo-500/20"
-                        >
-                          {req}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {/* Email Delivery Confirmation */}
-                {item.job_meta.email_sent_to && (
-                  <div className="flex items-center gap-1.5 text-[11px] text-emerald-700 dark:text-emerald-300 bg-emerald-500/10 border border-emerald-500/20 px-3 py-1.5 rounded-xl font-medium">
-                    <Mail className="w-3.5 h-3.5 shrink-0" />
-                    <span>
-                      {lang === 'fa'
-                        ? `ارسال شده به ایمیل: ${item.job_meta.email_sent_to}`
-                        : `Dispatched to: ${item.job_meta.email_sent_to}`}
-                    </span>
-                  </div>
-                )}
-
-                {/* Status Switcher (Interactive Buttons) */}
-                <div className="pt-2 border-t border-indigo-200/60 dark:border-indigo-500/20">
-                  <span className="text-[11px] text-slate-500 dark:text-slate-400 block mb-2 font-medium">
-                    {lang === 'fa' ? 'تغییر وضعیت پیگیری شغل:' : 'Update Pipeline Status:'}
+              {/* Requirements */}
+              {item.job_meta.requirements && item.job_meta.requirements.length > 0 && (
+                <div>
+                  <span className="mb-2 block text-[10.5px] font-semibold text-slate-500 dark:text-slate-400">
+                    نیازمندی‌ها
                   </span>
                   <div className="flex flex-wrap gap-1.5">
-                    {jobStatuses.map((st) => {
-                      const isCurrent = item.job_meta?.status === st;
-                      return (
-                        <button
-                          key={st}
-                          onClick={() => handleJobStatusChange(st)}
-                          className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all active:scale-95 ${
-                            isCurrent
-                              ? 'bg-indigo-600 text-white shadow-sm'
-                              : 'bg-white dark:bg-white/5 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-white/10 border border-slate-200 dark:border-transparent'
-                          }`}
-                        >
-                          {t[`status_${st}` as keyof typeof t]}
-                        </button>
-                      );
-                    })}
+                    {item.job_meta.requirements.map((req, i) => (
+                      <span
+                        key={i}
+                        className="rounded-full border border-white/10 bg-white/[0.055] px-2.5 py-1 text-[9.5px] font-medium text-slate-300 backdrop-blur-md"
+                      >
+                        <bdi dir="ltr">{req}</bdi>
+                      </span>
+                    ))}
                   </div>
                 </div>
-              </div>
-            )}
+              )}
+            </>
+          )}
 
-            {/* AI Summary Highlight */}
-            <div className="p-4 rounded-2xl bg-gradient-to-br from-indigo-50/80 via-purple-50/40 to-white dark:from-indigo-950/40 dark:via-[#181826] dark:to-[#12121A] border border-indigo-200/80 dark:border-indigo-500/30">
-              <div className="flex items-center justify-between mb-2">
-                <div className="flex items-center gap-1.5 text-xs font-bold text-indigo-600 dark:text-indigo-300">
-                  <Sparkles className="w-4 h-4 text-indigo-500 dark:text-indigo-400" />
-                  <span>{lang === 'fa' ? 'خلاصه هوشمند Gemini' : 'AI Summary by Gemini'}</span>
-                </div>
-                <button
-                  onClick={handleReenrich}
-                  disabled={isReenriching}
-                  className="text-[11px] text-indigo-600 dark:text-indigo-300 hover:text-indigo-800 dark:hover:text-white flex items-center gap-1 font-medium disabled:opacity-50"
-                  title={t.reenrich}
-                >
-                  <Sparkles className={`w-3 h-3 ${isReenriching ? 'animate-spin' : ''}`} />
-                  <span>{isReenriching ? (lang === 'fa' ? 'در حال بازتولید...' : 'Enriching...') : t.reenrich}</span>
-                </button>
+          {/* AI summary */}
+          <div className="ios-glass-card overflow-hidden p-4">
+            <div className="mb-2 flex items-center justify-between gap-2">
+              <div className="flex items-center gap-1.5 text-[10.5px] font-bold text-cyan-200">
+                <Sparkles className="h-3.5 w-3.5" />
+                <span>خلاصه هوشمند Gemini</span>
               </div>
-              <p
-                dir="auto"
-                className="text-xs sm:text-sm text-slate-700 dark:text-slate-200 leading-relaxed font-normal"
+              <button
+                type="button"
+                onClick={handleReenrich}
+                disabled={isReenriching}
+                className="flex items-center gap-1 text-[9.5px] font-semibold text-cyan-300 disabled:opacity-50"
+                title={t.reenrich}
               >
-                {item.summary}
-              </p>
+                <Sparkles className={`h-3 w-3 ${isReenriching ? 'animate-spin' : ''}`} />
+                <span>{isReenriching ? 'در حال بازتولید...' : t.reenrich}</span>
+              </button>
             </div>
+            <p dir="auto" className="text-[11.5px] font-normal leading-relaxed text-slate-600 dark:text-slate-200">
+              {item.summary}
+            </p>
+          </div>
 
-            {/* Full Content / Reader Mode */}
-            <div>
-              <h3 className="text-xs font-bold text-slate-400 dark:text-slate-400 uppercase tracking-wider mb-2">
-                {t.reader_mode}
-              </h3>
-              <div
-                dir="auto"
-                className="p-4 rounded-2xl bg-slate-50 dark:bg-black/30 border border-slate-200/80 dark:border-white/5 text-xs sm:text-sm text-slate-700 dark:text-slate-300 leading-relaxed whitespace-pre-line font-normal"
-              >
-                {item.content || item.summary}
-              </div>
-            </div>
-
-            {/* Tags Manager */}
-            <div>
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">
-                  {lang === 'fa' ? 'برچسب‌ها (قابل ویرایش)' : 'Tags (Editable)'}
-                </span>
-                {!isAddingTag && (
-                  <button
-                    onClick={() => setIsAddingTag(true)}
-                    className="flex items-center gap-1 text-[11px] text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 dark:hover:text-indigo-300 font-semibold"
-                  >
-                    <Plus className="w-3.5 h-3.5" />
-                    <span>{t.add_tag}</span>
-                  </button>
-                )}
-              </div>
-
-              <div className="flex flex-wrap gap-1.5 items-center">
-                {item.tags.map((tag) => (
-                  <span
-                    key={tag}
-                    className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs bg-slate-100 dark:bg-white/5 text-slate-700 dark:text-slate-300 border border-slate-200/80 dark:border-white/5"
-                  >
-                    <span>#{tag}</span>
-                    <button
-                      onClick={() => handleRemoveTag(tag)}
-                      className="text-slate-400 hover:text-rose-500 ms-1"
-                      title="Remove tag"
-                    >
-                      <X className="w-3 h-3" />
-                    </button>
-                  </span>
-                ))}
-
-                {isAddingTag && (
-                  <form onSubmit={handleAddTag} className="flex items-center gap-1">
-                    <input
-                      type="text"
-                      autoFocus
-                      placeholder={lang === 'fa' ? 'نام برچسب...' : 'Tag name...'}
-                      value={newTagInput}
-                      onChange={(e) => setNewTagInput(e.target.value)}
-                      className="h-7 px-2 text-xs rounded-lg bg-white dark:bg-black/50 border border-indigo-500 text-slate-900 dark:text-white focus:outline-none"
-                    />
-                    <button
-                      type="submit"
-                      className="h-7 px-2 rounded-lg bg-indigo-600 text-white text-xs font-medium"
-                    >
-                      ✓
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setIsAddingTag(false)}
-                      className="h-7 px-2 rounded-lg bg-slate-200 dark:bg-white/10 text-slate-600 dark:text-slate-300 text-xs"
-                    >
-                      ✕
-                    </button>
-                  </form>
-                )}
-              </div>
+          {/* Reader */}
+          <div>
+            <h3 className="mb-2 text-[9.5px] font-bold uppercase tracking-[0.16em] text-slate-500 dark:text-slate-400">
+              {t.reader_mode}
+            </h3>
+            <div
+              dir="auto"
+              className="ios-reader whitespace-pre-line rounded-[22px] p-4 text-[11.5px] font-normal leading-relaxed text-slate-600 dark:text-slate-300"
+            >
+              {item.content || item.summary}
             </div>
           </div>
 
-          {/* Sticky Bottom Actions */}
-          <div className="p-4 bg-slate-50 dark:bg-[#0F0F17] border-t border-slate-200 dark:border-white/5 flex items-center justify-between gap-3 shrink-0 pb-safe">
-            <div className="flex items-center gap-1">
-              <button
-                onClick={handleArchiveToggle}
-                className="w-10 h-10 flex items-center justify-center rounded-xl bg-white dark:bg-white/5 border border-slate-200 dark:border-transparent text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-white/10 active:scale-95 transition-all shadow-sm"
-                title={item.is_archived ? t.unarchive : t.archive}
-              >
-                <Archive className="w-4 h-4" />
-              </button>
-              <button
-                onClick={handleDelete}
-                className="w-10 h-10 flex items-center justify-center rounded-xl bg-white dark:bg-white/5 border border-slate-200 dark:border-transparent text-slate-400 hover:text-rose-500 dark:hover:text-rose-400 active:scale-95 transition-all shadow-sm"
-                title={t.delete}
-              >
-                <Trash2 className="w-4 h-4" />
-              </button>
+          {/* Tags */}
+          <div>
+            <div className="mb-2 flex items-center justify-between">
+              <span className="text-[10.5px] font-semibold text-slate-500 dark:text-slate-400">
+                برچسب‌ها
+              </span>
+              {!isAddingTag && (
+                <button
+                  type="button"
+                  onClick={() => setIsAddingTag(true)}
+                  className="flex items-center gap-1 text-[10px] font-semibold text-cyan-300"
+                >
+                  <Plus className="h-3.5 w-3.5" />
+                  <span>{t.add_tag}</span>
+                </button>
+              )}
             </div>
+
+            <div className="flex flex-wrap items-center gap-1.5">
+              {item.tags.map((tag) => (
+                <span
+                  key={tag}
+                  className="inline-flex items-center gap-1 rounded-full border border-white/10 bg-white/[0.055] px-2.5 py-1 text-[10px] text-slate-300 backdrop-blur-md"
+                >
+                  <bdi dir="ltr">#{normalizeTag(tag)}</bdi>
+                  <button
+                    type="button"
+                    onClick={() => handleRemoveTag(tag)}
+                    className="ms-0.5 text-slate-500 transition-colors hover:text-rose-400"
+                    title="Remove tag"
+                  >
+                    <X className="h-3 w-3" />
+                  </button>
+                </span>
+              ))}
+
+              {isAddingTag && (
+                <form onSubmit={handleAddTag} className="flex items-center gap-1">
+                  <input
+                    type="text"
+                    autoFocus
+                    placeholder="نام برچسب..."
+                    value={newTagInput}
+                    onChange={(e) => setNewTagInput(e.target.value)}
+                    className="ios-field h-7 w-28 rounded-full px-2.5 text-[10px]"
+                  />
+                  <button
+                    type="submit"
+                    className="flex h-7 w-7 items-center justify-center rounded-full bg-cyan-500/25 text-[11px] text-cyan-100"
+                  >
+                    <Check className="h-3.5 w-3.5" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setIsAddingTag(false)}
+                    className="flex h-7 w-7 items-center justify-center rounded-full bg-white/10 text-[11px] text-slate-400"
+                  >
+                    <X className="h-3.5 w-3.5" />
+                  </button>
+                </form>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Sticky action bar */}
+        <div className="shrink-0 border-t border-white/[0.08] bg-slate-950/30 px-5 pb-safe pt-3 backdrop-blur-2xl dark:bg-slate-950/30">
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={handleArchiveToggle}
+              className="ios-icon-button h-11 w-11"
+              title={item.is_archived ? t.unarchive : t.archive}
+            >
+              <Archive className="h-4 w-4" />
+            </button>
+            <button
+              type="button"
+              onClick={handleDelete}
+              className="ios-icon-button h-11 w-11 text-slate-500 hover:text-rose-400"
+              title={t.delete}
+            >
+              <Trash2 className="h-4 w-4" />
+            </button>
 
             {item.source_url ? (
               <a
                 href={item.source_url}
                 target="_blank"
                 rel="noreferrer"
-                className="flex-1 h-11 px-4 rounded-xl bg-gradient-to-r from-indigo-600 to-violet-600 text-white font-semibold text-xs sm:text-sm flex items-center justify-center gap-2 shadow-lg shadow-indigo-600/25 active:scale-[0.98] transition-all"
+                className="ios-press flex h-11 flex-1 items-center justify-center gap-2 rounded-full border border-emerald-300/40 bg-gradient-to-r from-emerald-500/85 to-cyan-500/75 px-4 text-[11px] font-bold text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.35),0_10px_26px_-10px_rgba(16,185,129,0.8)]"
               >
-                <span>
-                  {item.source_url.includes('jobinja')
-                    ? 'مشاهده آگهی در جابینجا (jobinja.ir)'
-                    : item.source_url.includes('jobvision')
-                    ? 'مشاهده آگهی در جاب‌ویژن (jobvision.ir)'
-                    : t.open_source}
-                </span>
-                <ExternalLink className="w-4 h-4" />
+                <span className="truncate">{ctaLabel}</span>
+                <ExternalLink className="h-3.5 w-3.5 shrink-0" />
               </a>
             ) : (
               <button
+                type="button"
                 onClick={onClose}
-                className="flex-1 h-11 px-4 rounded-xl bg-slate-200 dark:bg-white/10 text-slate-800 dark:text-white font-medium text-xs sm:text-sm flex items-center justify-center active:scale-[0.98] transition-all"
+                className="ios-press h-11 flex-1 rounded-full border border-white/15 bg-white/10 text-[11px] font-semibold text-slate-100"
               >
-                {lang === 'fa' ? 'بستن' : 'Close'}
+                بستن
               </button>
             )}
           </div>
-        </motion.div>
-      </div>
+        </div>
+        </div>
+      </motion.div>
+    </div>
+  );
+};
+
+export const ItemDetailModal: React.FC<ItemDetailModalProps> = ({
+  item,
+  onClose,
+  onUpdate,
+  onDelete,
+}) => {
+  const [displayItem, setDisplayItem] = useState<Item | null>(item);
+
+  useEffect(() => {
+    if (item) setDisplayItem(item);
+  }, [item]);
+
+  return (
+    <AnimatePresence>
+      {item && displayItem && (
+        <Sheet
+          key={displayItem.id}
+          item={displayItem}
+          onClose={onClose}
+          onUpdate={onUpdate}
+          onDelete={onDelete}
+        />
+      )}
     </AnimatePresence>
   );
 };

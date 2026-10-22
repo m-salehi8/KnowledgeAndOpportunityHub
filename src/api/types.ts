@@ -31,6 +31,7 @@ export interface ApiClient {
   getTags(): Promise<string[]>;
   getCategories(): Promise<string[]>;
   getStats(): Promise<HubStats>;
+  getProjects(): Promise<Project[]>;
   
   getSources(): Promise<Source[]>;
   createSource(source: Omit<Source, 'id'>): Promise<Source>;

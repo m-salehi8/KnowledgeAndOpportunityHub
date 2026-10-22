@@ -179,3 +179,25 @@ class AIEnrichmentResult(BaseModel):
 class AIJobScoreResult(BaseModel):
     score: int = Field(..., ge=0, le=100)
     reason: str
+
+
+class ProjectOut(BaseModel):
+    id: str
+    title: str
+    short_desc: str = ""
+    full_desc: str = ""
+    category: str = "fullstack"
+    status: str = "active"
+    tech_stack: List[str] = []
+    progress_percent: int = 70
+    impact_score: int = 88
+    ai_summary: str = ""
+    github_url: Optional[str] = None
+    live_url: Optional[str] = None
+    created_at: datetime
+    is_favorite: bool = True
+    stars_count: int = 0
+    source_channel: Optional[str] = None
+    telegram_sender: Optional[str] = None
+
+    model_config = ConfigDict(from_attributes=True)

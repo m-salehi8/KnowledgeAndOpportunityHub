@@ -984,8 +984,15 @@ app.get('/api/product-hunt/daily', async (_req: Request, res: Response) => {
   if (cachedProductHuntDigest) {
     return res.json(cachedProductHuntDigest);
   }
-  const result = await generateProductHuntDaily();
-  res.json(result);
+  res.json({
+    id: '',
+    date_formatted: '',
+    created_at: new Date().toISOString(),
+    total_products: 0,
+    products: [],
+    ai_spotlight: '',
+    idea_takeaway: '',
+  });
 });
 
 app.post('/api/product-hunt/daily', async (_req: Request, res: Response) => {

@@ -1,7 +1,9 @@
 import logging
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
+from apscheduler.triggers.interval import IntervalTrigger
 from services.scraper import run_news_digest_job, run_job_radar_job, run_product_hunt_job
+from services.telegram_projects import poll_telegram_projects
 from config import settings
 
 logger = logging.getLogger(__name__)
@@ -38,8 +40,22 @@ def start_scheduler():
             replace_existing=True,
         )
 
+        if settings.TELEGRAM_BOT_TOKEN:
+            scheduler.add_job(
+                poll_telegram_projects,
+                IntervalTrigger(seconds=20),
+                id="telegram_project_poll",
+                replace_existing=True,
+                max_instances=1,
+                coalesce=True,
+            )
+
         scheduler.start()
-        logger.info(f"APScheduler started. News at {settings.NEWS_DIGEST_TIME}, Jobs at {settings.JOB_RADAR_TIME}, Product Hunt at {settings.PRODUCT_HUNT_TIME}.")
+        logger.info(
+            f"APScheduler started. News at {settings.NEWS_DIGEST_TIME}, Jobs at {settings.JOB_RADAR_TIME}, "
+            f"Product Hunt at {settings.PRODUCT_HUNT_TIME}, "
+            f"Telegram polling: {'enabled' if settings.TELEGRAM_BOT_TOKEN else 'disabled'}."
+        )
     except Exception as e:
         logger.error(f"Failed to start APScheduler: {e}")
 

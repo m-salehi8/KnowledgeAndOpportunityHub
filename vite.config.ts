@@ -11,14 +11,21 @@ export default defineConfig(() => {
       tailwindcss(),
       VitePWA({
         registerType: 'autoUpdate',
-        includeAssets: ['icon.svg', 'apple-touch-icon.png', 'pwa-192x192.png', 'pwa-512x512.png'],
+        includeAssets: [
+          'apple-touch-icon.png',
+          'favicon-16x16.png',
+          'favicon-32x32.png',
+          'pwa-192x192.png',
+          'pwa-512x512.png',
+          'pwa-maskable-512x512.png',
+        ],
         manifest: {
           id: '/',
           name: 'Knowledge & Opportunity Hub',
           short_name: 'Hub',
           description: 'Personal AI-powered knowledge and opportunity hub.',
-          theme_color: '#0B0B0F',
-          background_color: '#0B0B0F',
+          theme_color: '#03070E',
+          background_color: '#03070E',
           display: 'standalone',
           orientation: 'portrait',
           start_url: '/',
@@ -48,7 +55,7 @@ export default defineConfig(() => {
         },
         workbox: {
           importScripts: ['/push-handler.js'],
-          globPatterns: ['**/*.{js,css,html,ico,png,svg,woff,woff2}'],
+          globPatterns: ['**/*.{js,css,html,ico,png,svg,woff,woff2,ttf}'],
           runtimeCaching: [
             {
               urlPattern: ({ url }) => url.pathname.startsWith('/api/'),

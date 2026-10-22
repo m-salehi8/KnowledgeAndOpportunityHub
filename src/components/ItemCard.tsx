@@ -1,9 +1,18 @@
 import React, { useState } from 'react';
-import { Send, Newspaper, Compass, Mail, Star, Archive, ChevronRight, Check } from 'lucide-react';
+import {
+  Send,
+  Newspaper,
+  Compass,
+  Mail,
+  Star,
+  Archive,
+  Check,
+  ChevronLeft,
+} from 'lucide-react';
 import { motion, useAnimation, PanInfo } from 'motion/react';
-import { Item } from '../types';
+import { Item, ItemType } from '../types';
 import { useApp } from '../context/AppContext';
-import { formatRelativeTime } from '../utils/format';
+import { formatRelativeTime, normalizeTag } from '../utils/format';
 import { JobScoreRing } from './JobScoreRing';
 
 interface ItemCardProps {
@@ -12,6 +21,37 @@ interface ItemCardProps {
   onArchiveToggle?: (item: Item) => void;
   onSelect?: (item: Item) => void;
 }
+
+const SOURCE_STYLES: Record<
+  ItemType,
+  { wrap: string; icon: React.ComponentType<{ className?: string }>; badge: string }
+> = {
+  telegram: {
+    wrap: 'bg-sky-400/15 text-sky-300 border-sky-300/25',
+    icon: Send,
+    badge: 'bg-sky-400/12 text-sky-200 border-sky-300/20',
+  },
+  news: {
+    wrap: 'bg-emerald-400/15 text-emerald-300 border-emerald-300/25',
+    icon: Newspaper,
+    badge: 'bg-amber-400/12 text-amber-200 border-amber-300/20',
+  },
+  job: {
+    wrap: 'bg-indigo-400/15 text-indigo-300 border-indigo-300/25',
+    icon: Compass,
+    badge: 'bg-emerald-400/12 text-emerald-200 border-emerald-300/20',
+  },
+  email: {
+    wrap: 'bg-amber-400/15 text-amber-300 border-amber-300/25',
+    icon: Mail,
+    badge: 'bg-amber-400/12 text-amber-200 border-amber-300/20',
+  },
+  producthunt: {
+    wrap: 'bg-orange-400/15 text-orange-300 border-orange-300/25',
+    icon: Compass,
+    badge: 'bg-orange-400/12 text-orange-200 border-orange-300/20',
+  },
+};
 
 export const ItemCard: React.FC<ItemCardProps> = ({
   item,
@@ -23,34 +63,8 @@ export const ItemCard: React.FC<ItemCardProps> = ({
   const controls = useAnimation();
   const [swipeAction, setSwipeAction] = useState<'favorite' | 'archive' | null>(null);
 
-  const getSourceIcon = () => {
-    switch (item.type) {
-      case 'telegram':
-        return (
-          <div className="w-5 h-5 rounded-md bg-sky-500/10 text-sky-500 dark:text-sky-400 flex items-center justify-center shrink-0">
-            <Send className="w-3 h-3" />
-          </div>
-        );
-      case 'news':
-        return (
-          <div className="w-5 h-5 rounded-md bg-emerald-500/10 text-emerald-500 dark:text-emerald-400 flex items-center justify-center shrink-0">
-            <Newspaper className="w-3 h-3" />
-          </div>
-        );
-      case 'job':
-        return (
-          <div className="w-5 h-5 rounded-md bg-indigo-500/10 text-indigo-500 dark:text-indigo-400 flex items-center justify-center shrink-0">
-            <Compass className="w-3 h-3" />
-          </div>
-        );
-      case 'email':
-        return (
-          <div className="w-5 h-5 rounded-md bg-amber-500/10 text-amber-500 dark:text-amber-400 flex items-center justify-center shrink-0">
-            <Mail className="w-3 h-3" />
-          </div>
-        );
-    }
-  };
+  const sourceStyle = SOURCE_STYLES[item.type] ?? SOURCE_STYLES.news;
+  const SourceIcon = sourceStyle.icon;
 
   const handleDrag = (_: unknown, info: PanInfo) => {
     if (info.offset.x > 50) {
@@ -66,13 +80,10 @@ export const ItemCard: React.FC<ItemCardProps> = ({
     const threshold = 85;
     if (info.offset.x > threshold) {
       if (onFavoriteToggle) onFavoriteToggle(item);
-      await controls.start({ x: 0, transition: { type: 'spring', damping: 25, stiffness: 300 } });
     } else if (info.offset.x < -threshold) {
       if (onArchiveToggle) onArchiveToggle(item);
-      await controls.start({ x: 0, transition: { type: 'spring', damping: 25, stiffness: 300 } });
-    } else {
-      await controls.start({ x: 0, transition: { type: 'spring', damping: 25, stiffness: 300 } });
     }
+    await controls.start({ x: 0, transition: { type: 'spring', damping: 26, stiffness: 320 } });
     setSwipeAction(null);
   };
 
@@ -84,169 +95,201 @@ export const ItemCard: React.FC<ItemCardProps> = ({
   };
 
   return (
-    <div className="relative overflow-hidden rounded-2xl mb-3 select-none">
-      {/* Background swipe indicators */}
-      <div className="absolute inset-0 flex items-center justify-between px-6 rounded-2xl bg-slate-200 dark:bg-slate-900 border border-slate-300 dark:border-white/5">
+    <div className="relative mb-3 overflow-hidden rounded-[26px] select-none">
+      {/* Swipe action field */}
+      <div className="absolute inset-0 flex items-center justify-between overflow-hidden rounded-[26px] px-5">
         <div
-          className={`flex items-center gap-2 text-xs font-semibold transition-opacity duration-200 ${
-            swipeAction === 'favorite' ? 'opacity-100 text-amber-500' : 'opacity-30 text-slate-400 dark:text-slate-600'
+          className={`flex items-center gap-2 rounded-full px-3 py-1.5 text-[11px] font-bold transition-all duration-200 ${
+            swipeAction === 'favorite'
+              ? 'bg-amber-400/25 text-amber-100 shadow-[0_0_24px_-4px_rgba(251,191,36,0.6)]'
+              : 'text-amber-200/35'
           }`}
         >
-          <Star className="w-5 h-5 fill-current" />
+          <Star className="h-4 w-4 fill-current" />
           <span>{item.is_favorite ? t.unfavorite : t.favorite}</span>
         </div>
+
         <div
-          className={`flex items-center gap-2 text-xs font-semibold transition-opacity duration-200 ${
-            swipeAction === 'archive' ? 'opacity-100 text-rose-500' : 'opacity-30 text-slate-400 dark:text-slate-600'
+          className={`flex items-center gap-2 rounded-full px-3 py-1.5 text-[11px] font-bold transition-all duration-200 ${
+            swipeAction === 'archive'
+              ? 'bg-rose-500/25 text-rose-100 shadow-[0_0_24px_-4px_rgba(244,63,94,0.6)]'
+              : 'text-rose-200/35'
           }`}
         >
           <span>{item.is_archived ? t.unarchive : t.archive}</span>
-          <Archive className="w-5 h-5" />
+          <Archive className="h-4 w-4" />
         </div>
       </div>
 
-      {/* Main card surface */}
-      <motion.div
+      {/* Glass card */}
+      <motion.article
         drag="x"
-        dragConstraints={{ left: -110, right: 110 }}
-        dragElastic={0.4}
+        dragConstraints={{ left: -112, right: 112 }}
+        dragElastic={0.35}
         onDrag={handleDrag}
         onDragEnd={handleDragEnd}
         animate={controls}
         onClick={() => onSelect && onSelect(item)}
-        className={`relative z-10 p-4 rounded-2xl cursor-pointer transition-all duration-150 active:scale-[0.99] ${
-          item.is_read
-            ? 'bg-slate-50/90 dark:bg-[#12121A]/95 border border-slate-200/70 dark:border-white/5'
-            : 'bg-white dark:bg-[#181824] border border-slate-200/90 dark:border-indigo-500/20 shadow-[0_2px_12px_rgba(0,0,0,0.04)] dark:shadow-sm'
+        className={`ios-glass-card ios-specular relative z-10 cursor-pointer p-[18px] transition-transform duration-200 active:scale-[0.985] ${
+          item.is_read ? 'opacity-[0.86]' : ''
         }`}
+        style={{ borderRadius: 26 }}
       >
-        {/* Top unboxed metadata line */}
-        <div className="flex items-center justify-between gap-2 text-xs text-slate-500 dark:text-slate-400 mb-2">
-          <div className="flex items-center gap-1.5 truncate">
-            {getSourceIcon()}
-            <span className="font-semibold text-slate-700 dark:text-slate-200 truncate max-w-[150px]">
+        {/* Unread edge light */}
+        {!item.is_read && (
+          <span
+            aria-hidden="true"
+            className="absolute inset-y-6 start-0 w-[3px] rounded-full"
+            style={{
+              background: 'linear-gradient(180deg, #67E8F9, #6366F1)',
+              boxShadow: '0 0 14px rgba(103,232,249,0.55)',
+            }}
+          />
+        )}
+
+        {/* Meta row */}
+        <div className="mb-2.5 flex items-center justify-between gap-2">
+          <div className="flex min-w-0 items-center gap-2">
+            {!item.is_read && (
+              <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-cyan-300 shadow-[0_0_8px_#22D3EE]" />
+            )}
+
+            <span
+              className={`inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-[9px] border backdrop-blur-md ${sourceStyle.wrap}`}
+            >
+              <SourceIcon className="h-3 w-3" />
+            </span>
+
+            <span
+              dir="auto"
+              className={`max-w-[128px] truncate rounded-full border px-2 py-[3px] text-[10px] font-bold backdrop-blur-md ${sourceStyle.badge}`}
+            >
               {item.source_name}
             </span>
-            <span aria-hidden="true" className="opacity-40">·</span>
-            <span className="text-[11px] whitespace-nowrap text-slate-400 dark:text-slate-500">{relativeDate}</span>
+
+            <span aria-hidden="true" className="text-[10px] text-slate-500/60">
+              ·
+            </span>
+            <span className="whitespace-nowrap text-[10px] font-medium text-slate-500 dark:text-slate-400">
+              {relativeDate}
+            </span>
           </div>
 
-          <div className="flex items-center gap-1 shrink-0">
-            {item.is_read && (
-              <span title={t.mark_as_read} className="inline-flex">
-                <Check className="w-3.5 h-3.5 text-slate-400 dark:text-slate-500 shrink-0" />
-              </span>
-            )}
+          <div className="flex shrink-0 items-center gap-1">
+            {item.is_read && <Check className="h-3.5 w-3.5 text-slate-500" />}
             <button
+              type="button"
               onClick={handleStarClick}
-              className="p-1 -me-1 rounded-lg text-slate-400 hover:text-amber-500 dark:hover:text-amber-400 transition-colors"
+              className="ios-press flex h-8 w-8 items-center justify-center rounded-full border border-white/10 bg-white/[0.045] text-slate-400 backdrop-blur-md transition-colors hover:text-amber-300"
               title={item.is_favorite ? t.unfavorite : t.favorite}
               aria-label={item.is_favorite ? t.unfavorite : t.favorite}
             >
               <Star
-                className={`w-4 h-4 ${
+                className={`h-4 w-4 ${
                   item.is_favorite
-                    ? 'text-amber-400 fill-amber-400'
-                    : 'text-slate-300 dark:text-slate-600 hover:text-amber-400'
+                    ? 'fill-amber-400 text-amber-400'
+                    : 'text-slate-400/80 dark:text-slate-500'
                 }`}
               />
             </button>
           </div>
         </div>
 
-        {/* Title & match score layout */}
-        <div className="flex items-start justify-between gap-3 mb-2">
+        {/* Title + score */}
+        <div className="mb-2 flex items-start justify-between gap-3">
           <h2
             dir="auto"
-            className="text-sm font-bold text-slate-900 dark:text-white leading-snug line-clamp-2"
+            className="line-clamp-2 flex-1 text-[14px] font-bold leading-[1.55] text-slate-900 dark:text-slate-50"
           >
             {item.title}
           </h2>
 
           {item.type === 'job' && item.job_meta && (
             <div className="shrink-0 -mt-0.5">
-              <JobScoreRing score={item.job_meta.match_score} size={42} strokeWidth={3} />
+              <JobScoreRing score={item.job_meta.match_score} size={44} strokeWidth={3} />
             </div>
           )}
         </div>
 
-        {/* AI Summary */}
+        {/* Summary */}
         <p
           dir="auto"
-          className="text-xs text-slate-600 dark:text-slate-300 line-clamp-2 leading-relaxed mb-2.5 font-normal"
+          className="mb-3 line-clamp-2 text-[11.5px] font-normal leading-relaxed text-slate-600 dark:text-slate-300/85"
         >
           {item.summary}
         </p>
 
-        {/* Job Requirements & Source Badges */}
+        {/* Job chips */}
         {item.type === 'job' && item.job_meta && (
-          <div className="flex flex-wrap items-center gap-1.5 mb-3">
-            {item.source_name.includes('jobinja') ? (
-              <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20">
+          <div className="mb-3 flex flex-wrap items-center gap-1.5">
+            {item.source_name.includes('jobinja') && (
+              <span className="rounded-full border border-blue-300/25 bg-blue-400/12 px-2 py-[3px] text-[9.5px] font-bold text-blue-200 backdrop-blur-md">
                 جابینجا
               </span>
-            ) : item.source_name.includes('jobvision') ? (
-              <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-teal-500/10 text-teal-600 dark:text-teal-400 border border-teal-500/20">
+            )}
+            {item.source_name.includes('jobvision') && (
+              <span className="rounded-full border border-teal-300/25 bg-teal-400/12 px-2 py-[3px] text-[9.5px] font-bold text-teal-200 backdrop-blur-md">
                 جاب‌ویژن
               </span>
-            ) : null}
-
+            )}
             {item.job_meta.remote && (
-              <span className="px-1.5 py-0.5 rounded-md text-[10px] font-medium bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+              <span className="rounded-full border border-emerald-300/25 bg-emerald-400/12 px-2 py-[3px] text-[9.5px] font-bold text-emerald-200 backdrop-blur-md">
                 دورکاری
               </span>
             )}
-
             {item.job_meta.requirements?.slice(0, 3).map((req, idx) => (
               <span
                 key={idx}
-                className="px-1.5 py-0.5 rounded-md text-[10px] font-medium bg-slate-100 dark:bg-white/5 text-slate-600 dark:text-slate-300 border border-slate-200/60 dark:border-white/5"
+                className="rounded-full border border-white/10 bg-white/[0.055] px-2 py-[3px] text-[9.5px] font-medium text-slate-300 backdrop-blur-md"
               >
-                {req}
+                <bdi dir="ltr">{req}</bdi>
               </span>
             ))}
-
             {item.job_meta.email_sent_to && (
-              <span className="px-1.5 py-0.5 rounded-md text-[10px] font-medium bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20 ms-auto flex items-center gap-1">
-                <Mail className="w-2.5 h-2.5" />
-                <span>ایمیل شد</span>
+              <span className="ms-auto flex items-center gap-1 rounded-full border border-amber-300/25 bg-amber-400/12 px-2 py-[3px] text-[9.5px] font-bold text-amber-200">
+                <Mail className="h-2.5 w-2.5" />
+                ایمیل شد
               </span>
             )}
           </div>
         )}
 
-        {/* Bottom clean metadata & job specifics */}
-        <div className="flex items-center justify-between text-[11px] pt-2 border-t border-slate-100 dark:border-white/5">
+        {/* Footer */}
+        <div className="flex items-center justify-between gap-2 border-t border-white/[0.07] pt-2.5">
           {item.type === 'job' && item.job_meta ? (
-            <div className="flex items-center gap-1.5 overflow-hidden">
-              <span className="font-semibold text-indigo-600 dark:text-indigo-300 shrink-0 max-w-[120px] truncate">
-                {item.job_meta.company}
+            <div className="flex min-w-0 items-center gap-1.5 text-[10.5px]">
+              <span className="max-w-[120px] shrink-0 truncate font-bold text-cyan-200 dark:text-cyan-300">
+                <bdi dir="ltr">{item.job_meta.company}</bdi>
               </span>
-              <span aria-hidden="true" className="opacity-40">·</span>
-              <span className="truncate max-w-[140px] text-slate-500 dark:text-slate-400">
-                {item.job_meta.location}
+              <span aria-hidden="true" className="text-slate-500/50">
+                ·
+              </span>
+              <span className="truncate text-slate-500 dark:text-slate-400">
+                <bdi dir="ltr">{item.job_meta.location}</bdi>
               </span>
             </div>
           ) : (
-            <div className="flex items-center gap-1.5 overflow-hidden">
-              <span className="text-indigo-600 dark:text-indigo-400 font-medium truncate">
-                {item.category}
-              </span>
+            <div className="flex min-w-0 items-center gap-1.5 text-[10.5px]">
+              <span className="truncate font-semibold text-cyan-200/90 dark:text-cyan-300">{item.category}</span>
               {item.tags.length > 0 && (
                 <>
-                  <span aria-hidden="true" className="opacity-40">·</span>
-                  <span className="text-slate-400 dark:text-slate-500 truncate">#{item.tags[0]}</span>
+                  <span aria-hidden="true" className="text-slate-500/50">
+                    ·
+                  </span>
+                  <span className="truncate text-slate-500 dark:text-slate-400">
+                    <bdi dir="ltr">#{normalizeTag(item.tags[0])}</bdi>
+                  </span>
                 </>
               )}
             </div>
           )}
 
-          <div className="flex items-center gap-1 text-slate-400 dark:text-slate-500 shrink-0 text-[10px] hover:text-indigo-500 transition-colors">
+          <div className="flex shrink-0 items-center gap-0.5 text-[10px] font-medium text-slate-500 dark:text-slate-400">
             <span>{t.reader_mode}</span>
-            <ChevronRight className="w-3 h-3 rtl:rotate-180 opacity-70" />
+            <ChevronLeft className="h-3 w-3 opacity-70" />
           </div>
         </div>
-      </motion.div>
+      </motion.article>
     </div>
   );
 };

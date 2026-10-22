@@ -6,6 +6,14 @@ export function toPersianDigits(input: string | number): string {
   return str.replace(/[0-9]/g, (char) => persianDigits[Number(char)]);
 }
 
+export function formatPercent(input: string | number): string {
+  return `${toPersianDigits(input)}٪`;
+}
+
+export function normalizeTag(tag: string): string {
+  return tag.replace(/^#+/, '').replace(/#+$/, '').trim();
+}
+
 /**
  * Converts a Gregorian date (year, month 1-12, day 1-31) to Jalali [jy, jm, jd]
  */

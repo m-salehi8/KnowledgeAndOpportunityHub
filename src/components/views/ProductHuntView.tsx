@@ -3,7 +3,7 @@ import { ProductHuntDailyDigest } from '../../types';
 import { api } from '../../api/client';
 import { initialProductHuntDigest } from '../../data/mockProductHunt';
 import { useApp } from '../../context/AppContext';
-import { toPersianDigits } from '../../utils/format';
+import { normalizeTag, toPersianDigits } from '../../utils/format';
 import {
   Rocket,
   Sparkles,
@@ -16,15 +16,18 @@ import {
   Users,
   CheckCircle2,
   TrendingUp,
+  PackageOpen,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
 export const ProductHuntView: React.FC = () => {
   const { showToast } = useApp();
   const [digest, setDigest] = useState<ProductHuntDailyDigest>(initialProductHuntDigest);
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [activeSubTab, setActiveSubTab] = useState<'all' | 'products' | 'spotlight' | 'ideas'>('all');
+
+  const isEmpty = !isLoading && digest.products.length === 0;
 
   useEffect(() => {
     let isMounted = true;
@@ -65,130 +68,175 @@ export const ProductHuntView: React.FC = () => {
   };
 
   return (
-    <div className="w-full max-w-5xl mx-auto px-4 py-6 md:py-8 space-y-6">
-      {/* Hero Banner */}
-      <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-[#DA552F]/15 via-indigo-600/10 to-violet-600/10 dark:from-[#DA552F]/20 dark:via-indigo-900/20 dark:to-purple-900/10 border border-[#DA552F]/30 dark:border-[#DA552F]/20 p-5 md:p-7 shadow-sm">
-        <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div className="space-y-2">
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#DA552F] text-white text-xs font-bold shadow-sm">
-                <Rocket className="w-3.5 h-3.5" />
-                <span>Product Hunt Daily Digest</span>
-              </span>
-              <span className="text-xs px-2.5 py-1 rounded-full bg-slate-200/80 dark:bg-white/10 text-slate-700 dark:text-slate-300 font-medium">
+    <div className="space-y-4 px-4 pb-4">
+      <div className="ios-glass-card ios-specular relative overflow-hidden p-[18px]">
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute -top-24 -start-16 h-64 w-64 rounded-full"
+          style={{
+            background:
+              'radial-gradient(circle, rgba(218,85,47,0.38), rgba(244,63,94,0.16) 55%, transparent 72%)',
+            filter: 'blur(28px)',
+          }}
+        />
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute -bottom-20 -end-14 h-52 w-52 rounded-full opacity-70"
+          style={{
+            background:
+              'radial-gradient(circle, rgba(45,212,191,0.32), rgba(34,211,238,0.14) 58%, transparent 74%)',
+            filter: 'blur(26px)',
+          }}
+        />
+
+        <div className="relative z-10 space-y-3">
+          <div className="flex flex-wrap items-center gap-1.5">
+            <span className="ios-glass-pill inline-flex items-center gap-1.5 px-2.5 py-1 text-[10px] font-bold text-[#DA552F] dark:text-[#fb923c]">
+              <Rocket className="h-3.5 w-3.5" />
+              <span>Product Hunt Daily Digest</span>
+            </span>
+            {digest.date_formatted && (
+              <span className="ios-glass-pill px-2.5 py-1 text-[10px] font-semibold text-slate-600 dark:text-slate-300">
                 {digest.date_formatted}
               </span>
-              <span className="text-xs px-2.5 py-1 rounded-full bg-indigo-500/15 text-indigo-700 dark:text-indigo-300 font-medium">
-                {toPersianDigits(digest.products.length)} محصول ارزیابی‌شده
-              </span>
-            </div>
-            <h1 className="text-xl md:text-2xl font-black text-slate-900 dark:text-white leading-tight">
-              دایجست روزانه برترین محصولات Product Hunt و ایده‌های نوآورانه
-            </h1>
-            <p className="text-xs md:text-sm text-slate-600 dark:text-slate-300 max-w-2xl leading-relaxed">
-              محصولات برتر لانچ‌شده در ۲۴ ساعت گذشته به همراه تحلیل عمیق اتوماسیون هوش مصنوعی و زوایای ایده‌پردازی برای بازار ایران و ساخت <bdi dir="ltr">Micro-SaaS</bdi>.
-            </p>
+            )}
+            <span className="ios-glass-pill inline-flex items-center gap-1 px-2.5 py-1 text-[10px] font-semibold text-cyan-700 dark:text-cyan-200">
+              <TrendingUp className="h-3 w-3" />
+              {toPersianDigits(digest.products.length)} محصول ارزیابی‌شده
+            </span>
           </div>
 
-          <div className="flex items-center gap-2 shrink-0">
-            <button
-              onClick={handleRefresh}
-              disabled={isRefreshing}
-              className="flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-[#DA552F] hover:bg-[#c44926] text-white text-xs font-bold shadow-md shadow-[#DA552F]/20 active:scale-95 transition-all disabled:opacity-60 cursor-pointer"
-            >
-              <RefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`} />
-              <span>{isRefreshing ? 'در حال تحلیل...' : 'به‌روزرسانی دایجست ۲۴ ساعت'}</span>
-            </button>
-          </div>
+          <h1 className="ios-glass-text text-xl font-black leading-tight">
+            دایجست روزانه برترین محصولات Product Hunt و ایده‌های نوآورانه
+          </h1>
+
+          <p className="max-w-2xl text-[11px] leading-relaxed text-slate-600 dark:text-slate-300">
+            محصولات برتر لانچ‌شده در ۲۴ ساعت گذشته به همراه تحلیل عمیق اتوماسیون هوش مصنوعی و زوایای ایده‌پردازی برای بازار ایران و ساخت <bdi dir="ltr">Micro-SaaS</bdi>.
+          </p>
+
+          <button
+            onClick={handleRefresh}
+            disabled={isRefreshing}
+            className="ios-press flex h-10 w-full items-center justify-center gap-2 rounded-full border border-orange-300/40 bg-gradient-to-r from-[#DA552F] via-[#e4613a] to-rose-500 px-4 text-[11px] font-bold text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.35),0_8px_22px_-8px_rgba(218,85,47,0.75)] transition-all disabled:opacity-60"
+          >
+            <RefreshCw className={`h-3.5 w-3.5 ${isRefreshing ? 'animate-spin' : ''}`} />
+            <span>{isRefreshing ? 'در حال تحلیل...' : 'به‌روزرسانی دایجست ۲۴ ساعت'}</span>
+          </button>
         </div>
       </div>
 
-      {/* Sub Tabs Filter */}
-      <div className="flex items-center gap-2 overflow-x-auto pb-2 scrollbar-none border-b border-slate-200 dark:border-white/10">
+      <div className="no-scrollbar flex items-center gap-2 overflow-x-auto pb-0.5">
         <button
           onClick={() => setActiveSubTab('all')}
-          className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all shrink-0 cursor-pointer ${
+          className={`ios-press shrink-0 px-3 py-2 text-[11px] font-semibold transition-all ${
             activeSubTab === 'all'
-              ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900 shadow-sm'
-              : 'text-slate-600 dark:text-slate-400 hover:bg-slate-200/60 dark:hover:bg-white/5'
+              ? 'ios-glass-pill-active'
+              : 'ios-glass-pill text-slate-600 dark:text-slate-300'
           }`}
         >
           گزارش کامل (همه بخش‌ها)
         </button>
         <button
           onClick={() => setActiveSubTab('products')}
-          className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all shrink-0 cursor-pointer ${
+          className={`ios-press flex shrink-0 items-center gap-1.5 px-3 py-2 text-[11px] font-semibold transition-all ${
             activeSubTab === 'products'
-              ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900 shadow-sm'
-              : 'text-slate-600 dark:text-slate-400 hover:bg-slate-200/60 dark:hover:bg-white/5'
+              ? 'ios-glass-pill-active'
+              : 'ios-glass-pill text-slate-600 dark:text-slate-300'
           }`}
         >
-          <Rocket className="w-3.5 h-3.5 text-[#DA552F]" />
+          <Rocket className="h-3.5 w-3.5 text-[#DA552F] dark:text-[#fb923c]" />
           <span>محصولات برتر ({toPersianDigits(digest.products.length)})</span>
         </button>
         <button
           onClick={() => setActiveSubTab('spotlight')}
-          className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all shrink-0 cursor-pointer ${
+          className={`ios-press flex shrink-0 items-center gap-1.5 px-3 py-2 text-[11px] font-semibold transition-all ${
             activeSubTab === 'spotlight'
-              ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900 shadow-sm'
-              : 'text-slate-600 dark:text-slate-400 hover:bg-slate-200/60 dark:hover:bg-white/5'
+              ? 'ios-glass-pill-active'
+              : 'ios-glass-pill text-slate-600 dark:text-slate-300'
           }`}
         >
-          <Sparkles className="w-3.5 h-3.5 text-indigo-500" />
+          <Sparkles className="h-3.5 w-3.5 text-indigo-500 dark:text-indigo-300" />
           <span>ویترین هوش مصنوعی و اتوماسیون</span>
         </button>
         <button
           onClick={() => setActiveSubTab('ideas')}
-          className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all shrink-0 cursor-pointer ${
+          className={`ios-press flex shrink-0 items-center gap-1.5 px-3 py-2 text-[11px] font-semibold transition-all ${
             activeSubTab === 'ideas'
-              ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900 shadow-sm'
-              : 'text-slate-600 dark:text-slate-400 hover:bg-slate-200/60 dark:hover:bg-white/5'
+              ? 'ios-glass-pill-active'
+              : 'ios-glass-pill text-slate-600 dark:text-slate-300'
           }`}
         >
-          <Lightbulb className="w-3.5 h-3.5 text-amber-500" />
+          <Lightbulb className="h-3.5 w-3.5 text-amber-500 dark:text-amber-300" />
           <span>زوایای ایده و Micro-SaaS</span>
         </button>
       </div>
 
-      {/* Main Content Area */}
-      <div className="space-y-8">
-        {/* Section 1: Top Products */}
+      <div className="space-y-5">
+        {isEmpty ? (
+          <div className="ios-glass-card ios-specular px-6 py-10 text-center">
+            <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-[20px] border border-orange-300/25 bg-orange-400/10 text-[#DA552F] dark:text-[#fb923c]">
+              <PackageOpen className="h-7 w-7" />
+            </div>
+            <h3 className="text-sm font-black text-slate-900 dark:text-white">
+              دایجست امروز هنوز آماده نیست
+            </h3>
+            <p className="mx-auto mt-1.5 max-w-xs text-[10.5px] leading-relaxed text-slate-500 dark:text-slate-400">
+              محصولات برتر ۲۴ ساعت گذشته هنوز دریافت نشده‌اند. برای اسکن و تحلیل دوباره، دکمه زیر را لمس کنید.
+            </p>
+            <button
+              type="button"
+              onClick={handleRefresh}
+              disabled={isRefreshing}
+              className="ios-press mx-auto mt-4 flex h-10 items-center justify-center gap-2 rounded-full border border-orange-300/40 bg-gradient-to-r from-[#DA552F] via-[#e4613a] to-rose-500 px-4 text-[11px] font-bold text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.35),0_8px_22px_-8px_rgba(218,85,47,0.75)] disabled:opacity-60"
+            >
+              <RefreshCw className={`h-3.5 w-3.5 ${isRefreshing ? 'animate-spin' : ''}`} />
+              <span>{isRefreshing ? 'در حال تحلیل...' : 'دریافت مجدد دایجست ۲۴ ساعت'}</span>
+            </button>
+          </div>
+        ) : isLoading ? (
+          <div className="space-y-3">
+            {[1, 2, 3].map((n) => (
+              <div key={n} className="ios-glass-card ios-skeleton h-[148px] rounded-[26px]" />
+            ))}
+          </div>
+        ) : (
+          <>
         {(activeSubTab === 'all' || activeSubTab === 'products') && (
-          <section className="space-y-4">
-            <div className="flex items-center justify-between">
-              <h2 className="text-base font-black text-slate-900 dark:text-white flex items-center gap-2">
-                <Rocket className="w-5 h-5 text-[#DA552F]" />
+          <section className="space-y-3">
+            <div className="flex items-center justify-between gap-2">
+              <h2 className="flex items-center gap-2 text-sm font-black text-slate-900 dark:text-white">
+                <Rocket className="h-4.5 w-4.5 text-[#DA552F] dark:text-[#fb923c]" />
                 <span>۱. برترین محصولات روز (Top Products)</span>
               </h2>
-              <span className="text-xs text-slate-500 dark:text-slate-400">
+              <span className="shrink-0 text-[9.5px] text-slate-500 dark:text-slate-400">
                 مرتب‌شده بر اساس استقبال و نوآوری فنی
               </span>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-3">
               {digest.products.map((product, idx) => (
                 <motion.div
                   key={idx}
                   initial={{ opacity: 0, y: 15 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: idx * 0.05 }}
-                  className="rounded-2xl bg-white dark:bg-[#14141E] border border-slate-200 dark:border-white/10 p-5 shadow-sm hover:border-[#DA552F]/50 dark:hover:border-[#DA552F]/40 transition-all flex flex-col justify-between group"
+                  className="ios-glass-card ios-press group flex flex-col justify-between p-4"
                 >
                   <div className="space-y-3">
                     <div className="flex items-start justify-between gap-3">
-                      <div>
-                        <div className="flex items-center gap-2">
-                          <h3 className="font-bold text-base text-slate-900 dark:text-white group-hover:text-[#DA552F] transition-colors">
+                      <div className="min-w-0">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <h3 className="text-base font-bold text-slate-900 transition-colors group-hover:text-[#DA552F] dark:text-white dark:group-hover:text-[#fb923c]">
                             <bdi dir="ltr">{product.name}</bdi>
                           </h3>
                           {product.is_ai && (
-                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-indigo-500/15 text-indigo-600 dark:text-indigo-400 text-[10px] font-bold">
-                              <Sparkles className="w-3 h-3" />
+                            <span className="ios-glass-pill inline-flex items-center gap-1 px-2 py-0.5 text-[9px] font-bold text-indigo-700 dark:text-indigo-200">
+                              <Sparkles className="h-3 w-3" />
                               <span>AI Powered</span>
                             </span>
                           )}
                         </div>
-                        <p className="text-xs font-semibold text-slate-700 dark:text-slate-300 mt-1 leading-snug">
+                        <p className="mt-1 text-xs font-semibold leading-snug text-slate-700 dark:text-slate-300">
                           {product.tagline}
                         </p>
                       </div>
@@ -197,45 +245,42 @@ export const ProductHuntView: React.FC = () => {
                         href={product.url}
                         target="_blank"
                         rel="noreferrer"
-                        className="p-2 rounded-xl bg-slate-100 hover:bg-[#DA552F]/15 dark:bg-white/5 dark:hover:bg-[#DA552F]/20 text-slate-600 dark:text-slate-300 hover:text-[#DA552F] shrink-0 transition-colors"
+                        className="ios-icon-button h-8 w-8 shrink-0 text-slate-600 transition-colors hover:text-[#DA552F] dark:text-slate-200 dark:hover:text-[#fb923c]"
                         title="مشاهده در Product Hunt"
                       >
-                        <ExternalLink className="w-4 h-4" />
+                        <ExternalLink className="h-4 w-4" />
                       </a>
                     </div>
 
-                    {/* Problem Solved */}
-                    <div className="p-3 rounded-xl bg-slate-50 dark:bg-white/[0.03] border border-slate-100 dark:border-white/5 space-y-1.5 text-xs">
-                      <div className="flex items-center gap-1.5 font-bold text-slate-700 dark:text-slate-300">
-                        <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
+                    <div className="ios-glass-subtile space-y-1.5 p-3 text-xs">
+                      <div className="flex items-center gap-1.5 font-bold text-slate-700 dark:text-slate-200">
+                        <CheckCircle2 className="h-3.5 w-3.5 shrink-0 text-emerald-500 dark:text-emerald-300" />
                         <span>مشکلی که حل می‌کند:</span>
                       </div>
-                      <p className="text-slate-600 dark:text-slate-400 leading-relaxed pr-5" dangerouslySetInnerHTML={{ __html: product.problem_solved }} />
+                      <p className="pe-5 leading-relaxed text-slate-600 dark:text-slate-400" dangerouslySetInnerHTML={{ __html: product.problem_solved }} />
                     </div>
 
-                    {/* Target Audience & Pricing */}
                     <div className="space-y-1.5 text-xs">
-                      <div className="flex items-center gap-1.5 text-slate-600 dark:text-slate-400">
-                        <Users className="w-3.5 h-3.5 text-indigo-500 shrink-0" />
-                        <span className="font-semibold text-slate-700 dark:text-slate-300">مخاطبان:</span>
-                        <span>{product.target_audience}</span>
+                      <div className="ios-glass-subtile flex items-center gap-1.5 p-2.5 text-slate-600 dark:text-slate-400">
+                        <Users className="h-3.5 w-3.5 shrink-0 text-indigo-500 dark:text-indigo-300" />
+                        <span className="font-semibold text-slate-700 dark:text-slate-200">مخاطبان:</span>
+                        <span className="min-w-0 truncate">{product.target_audience}</span>
                       </div>
-                      <div className="flex items-center gap-1.5 text-slate-600 dark:text-slate-400">
-                        <DollarSign className="w-3.5 h-3.5 text-amber-500 shrink-0" />
-                        <span className="font-semibold text-slate-700 dark:text-slate-300">مدل قیمت‌گذاری:</span>
-                        <span dangerouslySetInnerHTML={{ __html: product.pricing_model }} />
+                      <div className="ios-glass-subtile flex items-center gap-1.5 p-2.5 text-slate-600 dark:text-slate-400">
+                        <DollarSign className="h-3.5 w-3.5 shrink-0 text-amber-500 dark:text-amber-300" />
+                        <span className="font-semibold text-slate-700 dark:text-slate-200">مدل قیمت‌گذاری:</span>
+                        <span className="min-w-0" dangerouslySetInnerHTML={{ __html: product.pricing_model }} />
                       </div>
                     </div>
                   </div>
 
-                  {/* Tags */}
-                  <div className="pt-3 mt-3 border-t border-slate-100 dark:border-white/5 flex flex-wrap gap-1.5">
+                  <div className="mt-3 flex flex-wrap gap-1.5 border-t border-slate-200/60 pt-3 dark:border-white/[0.07]">
                     {product.tags.map((tag, tIdx) => (
                       <span
                         key={tIdx}
-                        className="px-2 py-0.5 rounded-lg bg-slate-100 dark:bg-white/5 text-slate-600 dark:text-slate-400 text-[11px] font-mono"
+                        className="rounded-full border border-slate-200/70 bg-white/60 px-2.5 py-1 text-[10px] font-mono text-slate-600 backdrop-blur-md dark:border-white/10 dark:bg-white/[0.06] dark:text-slate-300"
                       >
-                        <bdi dir="ltr">#{tag}</bdi>
+                        <bdi dir="ltr">#{normalizeTag(tag)}</bdi>
                       </span>
                     ))}
                   </div>
@@ -245,37 +290,54 @@ export const ProductHuntView: React.FC = () => {
           </section>
         )}
 
-        {/* Section 2: AI & Automation Spotlight */}
         {(activeSubTab === 'all' || activeSubTab === 'spotlight') && (
           <section className="space-y-3">
-            <h2 className="text-base font-black text-slate-900 dark:text-white flex items-center gap-2">
-              <Cpu className="w-5 h-5 text-indigo-500" />
+            <h2 className="flex items-center gap-2 text-sm font-black text-slate-900 dark:text-white">
+              <Cpu className="h-4.5 w-4.5 text-indigo-500 dark:text-indigo-300" />
               <span>۲. ذره‌بین هوش مصنوعی و اتوماسیون (AI & Automation Spotlight)</span>
             </h2>
-            <div className="rounded-3xl bg-white dark:bg-[#14141E] border border-slate-200 dark:border-white/10 p-6 md:p-7 shadow-sm relative overflow-hidden">
-              <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-500/5 rounded-full blur-3xl pointer-events-none" />
+            <div className="ios-glass-card ios-specular relative overflow-hidden p-2">
               <div
-                className="prose dark:prose-invert max-w-none text-slate-700 dark:text-slate-200"
+                aria-hidden="true"
+                className="pointer-events-none absolute -top-16 -end-10 h-40 w-40 rounded-full opacity-60"
+                style={{
+                  background:
+                    'radial-gradient(circle, rgba(99,102,241,0.28), transparent 70%)',
+                  filter: 'blur(22px)',
+                }}
+              />
+              <div
+                className="ios-reader prose dark:prose-invert relative z-10 max-w-none rounded-[24px] p-4 text-slate-700 dark:text-slate-200"
                 dangerouslySetInnerHTML={{ __html: digest.ai_spotlight }}
               />
             </div>
           </section>
         )}
 
-        {/* Section 3: Idea Angle / Takeaways */}
         {(activeSubTab === 'all' || activeSubTab === 'ideas') && (
           <section className="space-y-3">
-            <h2 className="text-base font-black text-slate-900 dark:text-white flex items-center gap-2">
-              <TrendingUp className="w-5 h-5 text-emerald-500" />
+            <h2 className="flex items-center gap-2 text-sm font-black text-slate-900 dark:text-white">
+              <TrendingUp className="h-4.5 w-4.5 text-emerald-500 dark:text-emerald-300" />
               <span>۳. زاویه ایده و فرصت‌های ساخت Micro-SaaS (Idea Angle)</span>
             </h2>
-            <div className="rounded-3xl bg-white dark:bg-[#14141E] border border-slate-200 dark:border-white/10 p-6 md:p-7 shadow-sm">
+            <div className="ios-glass-card ios-specular relative overflow-hidden p-2">
               <div
-                className="prose dark:prose-invert max-w-none text-slate-700 dark:text-slate-200"
+                aria-hidden="true"
+                className="pointer-events-none absolute -bottom-16 -start-10 h-40 w-40 rounded-full opacity-60"
+                style={{
+                  background:
+                    'radial-gradient(circle, rgba(16,185,129,0.26), transparent 70%)',
+                  filter: 'blur(22px)',
+                }}
+              />
+              <div
+                className="ios-reader prose dark:prose-invert relative z-10 max-w-none rounded-[24px] p-4 text-slate-700 dark:text-slate-200"
                 dangerouslySetInnerHTML={{ __html: digest.idea_takeaway }}
               />
             </div>
           </section>
+        )}
+          </>
         )}
       </div>
     </div>

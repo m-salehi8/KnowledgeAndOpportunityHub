@@ -2,6 +2,7 @@ import { ApiClient, ItemsFilter, ItemsResponse } from './types';
 import { Item, JobStatus, Source, Profile, AppSettings, HubStats, ProductHuntDailyDigest, Project } from '../types';
 import { INITIAL_ITEMS, INITIAL_PROFILE, INITIAL_SETTINGS, INITIAL_SOURCES } from './seedData';
 import { initialProductHuntDigest } from '../data/mockProductHunt';
+import { formatPercent } from '../utils/format';
 
 const STORAGE_KEYS = {
   ITEMS: 'hub_items_v2',
@@ -10,6 +11,67 @@ const STORAGE_KEYS = {
   SOURCES: 'hub_sources_v2',
   PRODUCT_HUNT: 'hub_ph_digest_v1',
 };
+
+const JOB_LINK_FIXES: Record<string, string> = {
+  'job-ir-1': 'https://jobinja.ir/jobs?filters%5Bkeywords%5D%5B%5D=Python',
+  'job-ir-2': 'https://jobinja.ir/jobs?filters%5Bkeywords%5D%5B%5D=Python%20AI',
+  'job-ir-3': 'https://jobvision.ir/jobs?query=python',
+  'job-ir-4': 'https://jobinja.ir/jobs?filters%5Bkeywords%5D%5B%5D=FastAPI',
+  'item-101': 'https://remoteok.com/remote-full-stack-jobs',
+  'item-104': 'https://weworkremotely.com/categories/remote-programming-jobs',
+  'item-107': 'https://remoteok.com/remote-react-jobs',
+  'item-109': 'https://remoteok.com/remote-devops-jobs',
+  'item-112': 'https://remoteok.com/remote-python-jobs',
+  'item-116': 'https://remoteok.com/remote-ai-jobs',
+  'item-119': 'https://jobinja.ir/jobs?filters%5Bkeywords%5D%5B%5D=WordPress',
+};
+
+const JOB_LINK_MIGRATION_FLAG = 'hub_job_links_fixed_v1';
+
+try {
+  if (!localStorage.getItem(JOB_LINK_MIGRATION_FLAG)) {
+    const raw = localStorage.getItem(STORAGE_KEYS.ITEMS);
+    if (raw) {
+      const items = JSON.parse(raw) as Item[];
+      let changed = false;
+      const fixed = items.map((item) => {
+        if (item.type !== 'job' || !item.source_url) return item;
+
+        let next = JOB_LINK_FIXES[item.id] || item.source_url;
+
+        try {
+          const url = new URL(next);
+          const host = url.hostname.replace(/^www\./, '');
+          if (host === 'jobinja.ir' && /^\/jobs\/[a-zA-Z]/.test(url.pathname)) {
+            next = 'https://jobinja.ir/jobs?filters%5Bkeywords%5D%5B%5D=Python';
+          } else if (host === 'jobvision.ir' && /^\/jobs\/[a-zA-Z]/.test(url.pathname)) {
+            next = 'https://jobvision.ir/jobs?query=python';
+          } else if (host === 'remoteok.com' && /^\/jobs\//.test(url.pathname)) {
+            next = 'https://remoteok.com/remote-jobs';
+          } else if (host === 'weworkremotely.com' && /^\/jobs\//.test(url.pathname)) {
+            next = 'https://weworkremotely.com/categories/remote-programming-jobs';
+          } else if (host.endsWith('syntheticlabs.io') || host.endsWith('cloudpulse.net')) {
+            next = 'https://remoteok.com/remote-jobs';
+          }
+        } catch {
+          // leave malformed URLs untouched
+        }
+
+        if (next !== item.source_url) {
+          changed = true;
+          return { ...item, source_url: next };
+        }
+        return item;
+      });
+      if (changed) {
+        localStorage.setItem(STORAGE_KEYS.ITEMS, JSON.stringify(fixed));
+      }
+    }
+    localStorage.setItem(JOB_LINK_MIGRATION_FLAG, '1');
+  }
+} catch {
+  // ignore
+}
 
 class MockApiClient implements ApiClient {
   private getStored<T>(key: string, fallback: T): T {
@@ -185,6 +247,10 @@ class MockApiClient implements ApiClient {
       high_match_jobs: unarchived.filter((i) => i.type === 'job' && (i.job_meta?.match_score ?? 0) >= 80).length,
       saved_count: unarchived.filter((i) => i.is_favorite).length,
     };
+  }
+
+  async getProjects(): Promise<Project[]> {
+    return this.getStored<Project[]>('hub_projects', []);
   }
 
   async getSources(): Promise<Source[]> {
@@ -386,7 +452,7 @@ class MockApiClient implements ApiClient {
         title: 'برنامه‌نویس ارشد پایتون و جنگو (Senior Python / Django)',
         summary: 'توسعه زیرسیستم‌های اصلی، طراحی دیتابیس PostgreSQL و معماری میکروسرویس با Django و DRF به صورت کاملاً دورکاری (Remote).',
         content: `شرح موقعیت در جابینجا:\nتوسعه زیرسیستم‌های اصلی، طراحی دیتابیس PostgreSQL، نوشتن کدهای تمیز و ماژولار و توسعه REST API با Django Rest Framework.\n\nنیازمندی‌ها:\n- تسلط کامل به Python و Django\n- تجربه PostgreSQL و میکروسرویس‌ها\n- کاملاً دورکاری`,
-        source_url: 'https://jobinja.ir/jobs/senior-python-django-remote',
+        source_url: 'https://jobinja.ir/jobs?filters%5Bkeywords%5D%5B%5D=Python',
         source_name: 'جابینجا (jobinja.ir)',
         category: 'فرصت شغلی',
         tags: ['Python', 'Django', 'PostgreSQL', 'Microservices', 'Docker', 'دورکاری'],
@@ -414,7 +480,7 @@ class MockApiClient implements ApiClient {
         title: 'مهندس بک‌اند Python و سیستم‌های هوش مصنوعی (AI Agents & LLM)',
         summary: 'اتصال وب‌سرویس‌های بک‌اند FastAPI به مدل‌های هوش مصنوعی مولد، وب اسکرپینگ، پایپ‌لاین‌های Agentic و مدیریت صف‌های Celery و کش Redis.',
         content: `شرح موقعیت در جابینجا:\nتوسعه سیستم‌های بک‌اند هوشمند، یکپارچه‌سازی مدل‌های هوش مصنوعی با FastAPI، مدیریت صف‌های Celery و Redis.`,
-        source_url: 'https://jobinja.ir/jobs/python-ai-systems-verkano',
+        source_url: 'https://jobinja.ir/jobs?filters%5Bkeywords%5D%5B%5D=Python%20AI',
         source_name: 'جابینجا (jobinja.ir)',
         category: 'فرصت شغلی',
         tags: ['Python', 'FastAPI', 'AI Agents', 'PostgreSQL', 'دورکاری'],
@@ -442,7 +508,7 @@ class MockApiClient implements ApiClient {
         title: 'برنامه‌نویس ارشد Python (Django / FastAPI) و وب اسکرپینگ مقیاس‌بالا',
         summary: 'طراحی خطوط واکشی داده با وب اسکرپینگ پیشرفته (Scrapy و Proxy Rotation)، ساخت REST APIهای پرسرعت با جنگو یا FastAPI و پایگاه‌داده PostgreSQL.',
         content: `شرح موقعیت شغلی در جاب‌ویژن:\nاستخدام برنامه‌نویس مسلط به پایتون جهت توسعه خطوط پردازش داده، وب اسکرپینگ منابع آنلاین و پیاده‌سازی API.`,
-        source_url: 'https://jobvision.ir/jobs/python-django-web-scraping',
+        source_url: 'https://jobvision.ir/jobs?query=python',
         source_name: 'جاب‌ویژن (jobvision.ir)',
         category: 'فرصت شغلی',
         tags: ['Python', 'Django', 'Web Scraping', 'FastAPI', 'PostgreSQL', 'دورکاری'],
@@ -470,7 +536,7 @@ class MockApiClient implements ApiClient {
         title: 'توسعه‌دهنده پایتون و موتورهای اتوماسیون گردش‌کار (Workflow Automation / DAG Engine)',
         summary: 'توسعه موتور ناهمگام اجرای تسک‌ها و ارکستراسیون DAG با FastAPI، اتصال وب‌هوک‌ها و ساخت پایپ‌لاین‌های خودکار بدون کد.',
         content: `شرح در جابینجا:\nتوسعه هسته اجرایی فرآیندساز با پایتون و FastAPI و موتور ناهمگام ارکستراسیون تسک‌ها با همزمانی بالا.`,
-        source_url: 'https://jobinja.ir/jobs/python-dag-workflow-automation-fanap',
+        source_url: 'https://jobinja.ir/jobs?filters%5Bkeywords%5D%5B%5D=FastAPI',
         source_name: 'جابینجا (jobinja.ir)',
         category: 'فرصت شغلی',
         tags: ['Python', 'FastAPI', 'DAG Engine', 'Workflow', 'PostgreSQL', 'دورکاری'],
@@ -498,7 +564,7 @@ class MockApiClient implements ApiClient {
         title: 'توسعه‌دهنده ارشد Backend و طراح خطوط ETL داده (Data Engineer)',
         summary: 'طراحی پایپ‌لاین‌های خودکار استخراج، تبدیل و بارگذاری داده (ETL) با پایتون و Pandas، نرمال‌سازی داده‌ها و اتصال به Elasticsearch.',
         content: `شرح در جاب‌ویژن:\nتوسعه خطوط مهندسی داده با پایتون و Pandas، نرمال‌سازی داده‌ها و ایندکس‌گذاری در Elasticsearch.`,
-        source_url: 'https://jobvision.ir/jobs/senior-python-data-engineer-etl',
+        source_url: 'https://jobvision.ir/jobs?query=data',
         source_name: 'جاب‌ویژن (jobvision.ir)',
         category: 'فرصت شغلی',
         tags: ['Python', 'ETL', 'Pandas', 'Elasticsearch', 'PostgreSQL', 'دورکاری'],
@@ -526,7 +592,7 @@ class MockApiClient implements ApiClient {
         title: 'مهندس ارشد بک‌اند Python & FastAPI (معماری میکروسرویس)',
         summary: 'توسعه سرویس‌های مالی بر بستر FastAPI و معماری میکروسرویس، سیستم‌های کشینگ توزیع‌شده Redis و پایگاه‌داده PostgreSQL در تهران.',
         content: `شرح موقعیت در جابینجا:\nتوسعه سرویس‌های پرترافیک با پایتون و FastAPI بر بستر میکروسرویس.`,
-        source_url: 'https://jobinja.ir/jobs/senior-python-fastapi-microservices',
+        source_url: 'https://jobinja.ir/jobs?filters%5Bkeywords%5D%5B%5D=FastAPI',
         source_name: 'جابینجا (jobinja.ir)',
         category: 'فرصت شغلی',
         tags: ['Python', 'FastAPI', 'Microservices', 'PostgreSQL', 'تهران'],
@@ -554,7 +620,7 @@ class MockApiClient implements ApiClient {
         title: 'برنامه‌نویس Senior پایتون، RabbitMQ و میکروسرویس‌های پردازش رسانه',
         summary: 'طراحی میکروسرویس‌های توزیع‌شده پردازش رسانه، مدیریت صف پیام با RabbitMQ برای افزایش ظرفیت در زمان پیک بار و پیاده‌سازی SSO.',
         content: `شرح در جاب‌ویژن:\nتوسعه سیستم‌های مقیاس‌پذیر ویدیو و رسانه با پایتون، صف‌های RabbitMQ و استقرار کانتینری Docker.`,
-        source_url: 'https://jobvision.ir/jobs/senior-python-rabbitmq-aparat',
+        source_url: 'https://jobvision.ir/jobs?query=rabbitmq',
         source_name: 'جاب‌ویژن (jobvision.ir)',
         category: 'فرصت شغلی',
         tags: ['Python', 'RabbitMQ', 'Microservices', 'Docker', 'تهران'],
@@ -582,7 +648,7 @@ class MockApiClient implements ApiClient {
         title: 'مهندس ارشد وب‌اسکرپینگ و خزشگرهای توزیع‌شده با Scrapy',
         summary: 'خزش پایدار در مقیاس چندصد هزار رکورد با Scrapy، دور زدن آنتی‌بات و مدیریت صف خزش و نرمال‌سازی داده برای مدل‌های تحلیلی.',
         content: `شرح در جابینجا:\nتوسعه خزشگرهای خودکار و پایدار برای استخراج اطلاعات بازار با Scrapy، پروکسی چرخشی و پایگاه‌داده PostgreSQL.`,
-        source_url: 'https://jobinja.ir/jobs/senior-scrapy-web-scraping-quant',
+        source_url: 'https://jobinja.ir/jobs?filters%5Bkeywords%5D%5B%5D=Scrapy',
         source_name: 'جابینجا (jobinja.ir)',
         category: 'فرصت شغلی',
         tags: ['Python', 'Scrapy', 'Web Scraping', 'Proxy Rotation', 'دورکاری'],
@@ -610,7 +676,7 @@ class MockApiClient implements ApiClient {
         title: 'برنامه‌نویس ارشد Django & PostgreSQL (بهینه‌سازی دیتابیس و RBAC)',
         summary: 'توسعه پلتفرم با فریم‌ورک جنگو و DRF، بهینه‌سازی کوئری‌های سنگین دیتابیس PostgreSQL، رعایت اصول Clean Architecture و احراز هویت RBAC.',
         content: `شرح در جاب‌ویژن:\nتوسعه سیستم‌های بک‌اند با پایتون و جنگو، طراحی دیتابیس‌های رابطه‌ای پیچیده و مدیریت تراکنش‌ها.`,
-        source_url: 'https://jobvision.ir/jobs/senior-django-postgresql-snappmarket',
+        source_url: 'https://jobvision.ir/jobs?query=django',
         source_name: 'جاب‌ویژن (jobvision.ir)',
         category: 'فرصت شغلی',
         tags: ['Python', 'Django', 'PostgreSQL', 'RBAC', 'دورکاری'],
@@ -638,7 +704,7 @@ class MockApiClient implements ApiClient {
         title: 'مهندس ارشد بک‌اند پایتون و سیستم‌های جستجوی Elasticsearch',
         summary: 'به‌روزرسانی خودکار و سریع داده‌ها و قیمت‌ها متصل به Elasticsearch، کشینگ توزیع‌شده با Redis و میکروسرویس‌های پرسرعت پایتونی.',
         content: `شرح در جابینجا:\nمدیریت و توسعه پایپ‌لاین‌های با همزمانی بالا متصل به کلاستر Elasticsearch برای جستجوی سریع لحظه‌ای کالاها.`,
-        source_url: 'https://jobinja.ir/jobs/senior-backend-python-elasticsearch-torob',
+        source_url: 'https://jobinja.ir/jobs?filters%5Bkeywords%5D%5B%5D=Elasticsearch',
         source_name: 'جابینجا (jobinja.ir)',
         category: 'فرصت شغلی',
         tags: ['Python', 'Elasticsearch', 'Redis', 'Microservices', 'FastAPI', 'دورکاری'],
@@ -666,7 +732,7 @@ class MockApiClient implements ApiClient {
         title: 'توسعه‌دهنده ارشد پایتون و سیستم‌های Agentic ERP / گردش‌کار اداری',
         summary: 'توسعه پورتال‌های سازمانی با پایتون و جنگو، اتصال به چت‌بات‌های هوشمند و ایجنتیک کردن امور اداری و فرآیندهای دستی.',
         content: `شرح در جاب‌ویژن:\nپیاده‌سازی پورتال‌های هوشمند سازمانی، تبدیل فرآیندهای دستی به گردش‌کارهای سیستمی و یکپارچه‌سازی با ایجنت‌های هوش مصنوعی.`,
-        source_url: 'https://jobvision.ir/jobs/senior-python-agentic-erp-douran',
+        source_url: 'https://jobvision.ir/jobs?query=python',
         source_name: 'جاب‌ویژن (jobvision.ir)',
         category: 'فرصت شغلی',
         tags: ['Python', 'Django', 'AI Agents', 'Workflow Automation', 'PostgreSQL', 'دورکاری'],
@@ -694,7 +760,7 @@ class MockApiClient implements ApiClient {
         title: 'مهندس بک‌اند پایتون و ساخت ابزارهای هوش تجاری (BI & Analytics Platform)',
         summary: 'توسعه پلتفرم هوش تجاری و گزارش‌گیری داده‌محور با DRF و Pandas، تولید چارت‌های آماری و جداسازی محاسبات آماری از مدل زبانی.',
         content: `شرح در جابینجا:\nطراحی سرویس‌های تحلیل داده و پردازش فایل‌های بزرگ اکسل با پایتون، جنگو و پانداس و ارائه داشبوردهای تعاملی.`,
-        source_url: 'https://jobinja.ir/jobs/python-bi-analytics-platform-part',
+        source_url: 'https://jobinja.ir/jobs?filters%5Bkeywords%5D%5B%5D=Pandas',
         source_name: 'جابینجا (jobinja.ir)',
         category: 'فرصت شغلی',
         tags: ['Python', 'Django', 'DRF', 'Pandas', 'PostgreSQL', 'AI Orchestration', 'دورکاری'],
@@ -730,7 +796,7 @@ class MockApiClient implements ApiClient {
 
 نتایج تحلیل بر اساس رزومه ۵ سال تجربه تخصصی محمدرضا صالحی:
 ${scraped.map((j, idx) => `${idx + 1}. ${j.title} (${j.job_meta?.company})
-- تطابق: ${j.job_meta?.match_score}%
+- تطابق: ${formatPercent(j.job_meta?.match_score ?? 0)}
 - منبع: ${j.source_name}
 - موقعیت: ${j.job_meta?.location}
 - نیازمندی‌ها: ${j.job_meta?.requirements?.join(', ')}
@@ -1047,6 +1113,10 @@ class HttpApiClient implements ApiClient {
 
   async getStats(): Promise<HubStats> {
     return this.request<HubStats>('/api/stats');
+  }
+
+  async getProjects(): Promise<Project[]> {
+    return this.request<Project[]>('/api/projects');
   }
 
   async getSources(): Promise<Source[]> {

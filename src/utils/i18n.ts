@@ -95,7 +95,7 @@ export const translations = {
 
     // Push & PWA
     pwa_install_title: 'نصب اپلیکیشن روی آیفون (PWA)',
-    pwa_install_ios_step1: 'دکمه اشتراک‌گذاری (Share ⎘) را در نوار پایین مرورگر سافاری لمس کنید.',
+    pwa_install_ios_step1: 'دکمه اشتراک‌گذاری (Share) را در نوار پایین مرورگر سافاری لمس کنید.',
     pwa_install_ios_step2: 'در منوی باز شده گزینه «Add to Home Screen» (افزودن به صفحه اصلی) را انتخاب نمایید.',
     pwa_install_ios_step3: 'حالا اپلیکیشن با آیکون اختصاصی، عملکرد تمام‌صفحه و سرعت فوق‌العاده در دسترس شماست.',
     push_title: 'دریافت اعلان‌های لحظه‌ای (Web Push)',
@@ -207,7 +207,7 @@ export const translations = {
 
     // Push & PWA
     pwa_install_title: 'Install on iPhone (PWA)',
-    pwa_install_ios_step1: 'Tap the Share icon (⎘) in Safari bottom navigation toolbar.',
+    pwa_install_ios_step1: 'Tap the Share icon in Safari bottom navigation toolbar.',
     pwa_install_ios_step2: 'Scroll down and select "Add to Home Screen".',
     pwa_install_ios_step3: 'Open from your home screen for full standalone experience and instant notifications.',
     push_title: 'Instant Web Push Notifications',

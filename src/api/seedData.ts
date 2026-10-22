@@ -140,7 +140,7 @@ export const INITIAL_ITEMS: Item[] = [
 - منبع: جابینجا (jobinja.ir)
 - نوع همکاری: دورکاری کامل (Remote)
 - نیازمندی‌ها: Python, Django, DRF, PostgreSQL, Docker, Microservices
-- لینک آگهی: https://jobinja.ir/jobs/senior-python-django-remote
+- لینک آگهی: https://jobinja.ir/jobs?filters%5Bkeywords%5D%5B%5D=Python
 
 ۲. برنامه‌نویس بک‌اند Python و سیستم‌های هوش مصنوعی (ورکانو)
 - تطابق هوش مصنوعی: ۹۷٪
@@ -148,7 +148,7 @@ export const INITIAL_ITEMS: Item[] = [
 - منبع: جابینجا (jobinja.ir)
 - نوع همکاری: دورکاری / تهران
 - نیازمندی‌ها: Python, FastAPI, AI Systems, PostgreSQL, Celery
-- لینک آگهی: https://jobinja.ir/jobs/python-ai-systems-verkano
+- لینک آگهی: https://jobinja.ir/jobs?filters%5Bkeywords%5D%5B%5D=Python%20AI
 
 ۳. توسعه‌دهنده Python (Django) و وب اسکرپینگ (کانون کتاب)
 - تطابق هوش مصنوعی: ۹۶٪
@@ -156,7 +156,7 @@ export const INITIAL_ITEMS: Item[] = [
 - منبع: جاب‌ویژن (jobvision.ir)
 - نوع همکاری: دورکاری
 - نیازمندی‌ها: Python, Django, Web Scraping, PostgreSQL
-- لینک آگهی: https://jobvision.ir/jobs/python-django-web-scraping
+- لینک آگهی: https://jobvision.ir/jobs?query=python
 
 ۴. مهندس ارشد بک‌اند Python & FastAPI (کارگزاری مفید)
 - تطابق هوش مصنوعی: ۹۵٪
@@ -164,7 +164,7 @@ export const INITIAL_ITEMS: Item[] = [
 - منبع: جابینجا (jobinja.ir)
 - نوع همکاری: استان تهران / هیبرید
 - نیازمندی‌ها: FastAPI, Microservices, Asyncio, PostgreSQL
-- لینک آگهی: https://jobinja.ir/jobs/senior-python-fastapi-microservices`,
+- لینک آگهی: https://jobinja.ir/jobs?filters%5Bkeywords%5D%5B%5D=FastAPI`,
     source_url: 'mailto:mamadreza8138@gmail.com',
     source_name: 'گزارش روزانه ایمیل',
     category: 'گزارش روزانه',
@@ -190,7 +190,7 @@ export const INITIAL_ITEMS: Item[] = [
 - تجربه کار با دیتابیس PostgreSQL و بهینه‌سازی کوئری‌ها
 - آشنایی با داکر (Docker)، Redis، صف‌های Celery و میکروسرویس‌ها
 - نوع همکاری: تمام وقت، کاملاً دورکاری (محل سکونت اهمیتی ندارد)`,
-    source_url: 'https://jobinja.ir/jobs/senior-python-django-remote',
+    source_url: 'https://jobinja.ir/jobs?filters%5Bkeywords%5D%5B%5D=Python',
     source_name: 'جابینجا (jobinja.ir)',
     category: 'فرصت شغلی',
     tags: ['Python', 'Django', 'PostgreSQL', 'Microservices', 'Docker', 'دورکاری', 'جابینجا'],
@@ -227,7 +227,7 @@ export const INITIAL_ITEMS: Item[] = [
 - تسلط بر PostgreSQL، پایگاه‌های داده رابطه‌ای و داکر
 - مهارت در استخراج داده و وب اسکرپینگ
 - امکان دورکاری کامل از تمام نقاط کشور`,
-    source_url: 'https://jobinja.ir/jobs/python-ai-systems-verkano',
+    source_url: 'https://jobinja.ir/jobs?filters%5Bkeywords%5D%5B%5D=Python%20AI',
     source_name: 'جابینجا (jobinja.ir)',
     category: 'فرصت شغلی',
     tags: ['Python', 'FastAPI', 'AI Systems', 'PostgreSQL', 'Microservices', 'دورکاری', 'جابینجا'],
@@ -263,7 +263,7 @@ export const INITIAL_ITEMS: Item[] = [
 - تجربه کار با دیتابیس PostgreSQL و مایگریشن‌ها
 - تسلط بر Django و REST API
 - امکان دورکاری با جلسات آنلاین هماهنگی هفتگی`,
-    source_url: 'https://jobvision.ir/jobs/python-django-web-scraping',
+    source_url: 'https://jobvision.ir/jobs?query=python',
     source_name: 'جاب‌ویژن (jobvision.ir)',
     category: 'فرصت شغلی',
     tags: ['Python', 'Django', 'Web Scraping', 'FastAPI', 'PostgreSQL', 'دورکاری', 'جاب‌ویژن'],
@@ -300,7 +300,7 @@ export const INITIAL_ITEMS: Item[] = [
 - تسلط به PostgreSQL و Redis
 - تجربه کار با داکر و پایپ‌لاین‌های CI/CD
 - محل کار: استان تهران (امکان دورکاری دوره‌ای و ساعت کاری منعطف)`,
-    source_url: 'https://jobinja.ir/jobs/senior-python-fastapi-microservices',
+    source_url: 'https://jobinja.ir/jobs?filters%5Bkeywords%5D%5B%5D=FastAPI',
     source_name: 'جابینجا (jobinja.ir)',
     category: 'فرصت شغلی',
     tags: ['Python', 'FastAPI', 'Microservices', 'PostgreSQL', 'تهران', 'جابینجا'],
@@ -341,7 +341,7 @@ Qualifications:
 - Deep experience with modern frontend stacks (React 19, TypeScript, Tailwind).
 - Proven track record with vector databases, embeddings, and generative AI APIs.
 - Autonomous, async-first communicator comfortable across multiple time zones.`,
-    source_url: 'https://careers.syntheticlabs.io/jobs/staff-ai-fullstack',
+    source_url: 'https://remoteok.com/remote-full-stack-jobs',
     source_name: 'RemoteOK Job Radar',
     category: 'فرصت شغلی',
     tags: ['Python', 'FastAPI', 'React', 'AI', 'Remote', 'Senior'],
@@ -422,7 +422,7 @@ Key requirements:
 - Extensive Python backend mastery with async frameworks (FastAPI/Tornado).
 - Solid grasp of ACID guarantees, query tuning in PostgreSQL, and Redis caching layers.
 - Hands-on Docker, Kubernetes, and CI/CD automation.`,
-    source_url: 'https://weworkremotely.com/jobs/senior-python-data-pipeline',
+    source_url: 'https://weworkremotely.com/categories/remote-programming-jobs',
     source_name: 'WeWorkRemotely',
     category: 'فرصت شغلی',
     tags: ['Python', 'PostgreSQL', 'FastAPI', 'Data Pipelines', 'Remote'],
@@ -501,7 +501,7 @@ Key requirements:
 You will be spearheading our UI engineering efforts, building high-speed real-time collaborative canvases and responsive dashboards.
 Stack: React 19, TypeScript, Tailwind CSS, WebSockets, TanStack Query.
 We offer competitive equity, flexible PTO, and async workflow.`,
-    source_url: 'https://remoteok.com/jobs/lead-frontend-react-ts',
+    source_url: 'https://remoteok.com/remote-react-jobs',
     source_name: 'RemoteOK Job Radar',
     category: 'فرصت شغلی',
     tags: ['React', 'TypeScript', 'Tailwind', 'Lead', 'Remote'],
@@ -552,7 +552,7 @@ Designed specifically for high-throughput automated background tasks, webhook pr
     content: `Platform team is expanding:
 Requirements: Kubernetes, Terraform, ArgoCD, Linux kernel tuning, Grafana/Prometheus.
 Note: Primarily infrastructure focus with on-call rotation.`,
-    source_url: 'https://careers.cloudpulse.net/devops-senior',
+    source_url: 'https://remoteok.com/remote-devops-jobs',
     source_name: 'Jobinja Tech Radar',
     category: 'فرصت شغلی',
     tags: ['DevOps', 'Kubernetes', 'Docker', 'Linux'],
@@ -633,7 +633,7 @@ Responsibilities:
 - Write high-concurrency async endpoints with FastAPI.
 - Maintain Alembic database migrations and PostgreSQL connection pools.
 - Write thorough unit and integration tests using pytest and pytest-asyncio.`,
-    source_url: 'https://remoteok.com/jobs/fastapi-backend-fintech',
+    source_url: 'https://remoteok.com/remote-python-jobs',
     source_name: 'RemoteOK Job Radar',
     category: 'فرصت شغلی',
     tags: ['FastAPI', 'Python', 'PostgreSQL', 'Fintech', 'Remote'],
@@ -725,7 +725,7 @@ Popular hub cities for remote contract talent include Berlin, Amsterdam, Tbilisi
     content: `We are building the next generation of knowledge orchestration tools.
 Stack: Python, FastAPI, React, Vector Search, Gemini SDK.
 Competitive benefits package, equipment allowance, and annual retreat.`,
-    source_url: 'https://weworkremotely.com/jobs/senior-ai-application-dev',
+    source_url: 'https://remoteok.com/remote-ai-jobs',
     source_name: 'WeWorkRemotely',
     category: 'فرصت شغلی',
     tags: ['AI', 'Python', 'React', 'TypeScript', 'Remote'],
@@ -802,7 +802,7 @@ It allows developers to store text embeddings alongside traditional relational r
     summary: 'توسعه و پشتیبانی پوسته‌ها و افزونه‌های وردپرس برای فروشگاه‌های اینترنتی سنتی به صورت حضوری در اصفهان.',
     content: `به یک برنامه‌نویس جونیور وردپرس مسلط به PHP 7، قالب‌های ووکامرس و رفع ایرادات فنی سایت نیازمندیم.
 محل کار: دفتر اصفهان (حضوری).`,
-    source_url: 'https://jobinja.ir/jobs/junior-wordpress-esfahan',
+    source_url: 'https://jobinja.ir/jobs?filters%5Bkeywords%5D%5B%5D=WordPress',
     source_name: 'Jobinja Tech Radar',
     category: 'فرصت شغلی',
     tags: ['WordPress', 'PHP', 'Onsite', 'Junior'],

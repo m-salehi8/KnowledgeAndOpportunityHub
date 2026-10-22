@@ -1,0 +1,4 @@
+services:
+  hub-backend:
+    ports: !override
+      - "127.0.0.1:8010:8000"

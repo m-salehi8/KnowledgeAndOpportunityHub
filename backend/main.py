@@ -4,7 +4,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from database import engine, Base, SessionLocal
 from models import Profile, AppSettingsModel, Source
-from routers import webhooks, items, jobs, metadata, sources, profile, settings as app_settings, push
+from routers import webhooks, items, jobs, metadata, sources, profile, settings as app_settings, push, projects, telegram
 from services.scheduler import start_scheduler, shutdown_scheduler
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(name)s: %(message)s")
@@ -178,6 +178,8 @@ app.include_router(sources.router)
 app.include_router(profile.router)
 app.include_router(app_settings.router)
 app.include_router(push.router)
+app.include_router(projects.router)
+app.include_router(telegram.router)
 
 
 @app.get("/healthz")

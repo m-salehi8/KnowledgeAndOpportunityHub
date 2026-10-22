@@ -1,8 +1,7 @@
-import React from 'react';
-import { AppProvider, useApp } from './context/AppContext';
+import React, { useEffect, useLayoutEffect, useState } from 'react';
+import { AppProvider, useApp, TabType } from './context/AppContext';
 import { Header } from './components/Header';
 import { TabBar } from './components/TabBar';
-import { DesktopSidebar } from './components/DesktopSidebar';
 import { ItemDetailModal } from './components/ItemDetailModal';
 import { InboxView } from './components/views/InboxView';
 import { JobsRadarView } from './components/views/JobsRadarView';
@@ -11,12 +10,121 @@ import { ProjectsView } from './components/views/ProjectsView';
 import { SearchView } from './components/views/SearchView';
 import { SavedView } from './components/views/SavedView';
 import { SettingsView } from './components/views/SettingsView';
-import { CheckCircle2, AlertTriangle, AlertCircle, Info, Sparkles, RefreshCw, Sun, Moon } from 'lucide-react';
+import { CheckCircle2, AlertTriangle, AlertCircle, Info } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-import { toPersianDigits } from './utils/format';
+
+const ORB_GRADIENTS: Record<TabType, string> = {
+  inbox:
+    'radial-gradient(circle at 40% 35%, rgba(236,72,153,0.52), rgba(99,102,241,0.2) 55%, transparent 72%)',
+  jobs: 'radial-gradient(circle at 40% 35%, rgba(16,185,129,0.5), rgba(6,182,212,0.18) 55%, transparent 72%)',
+  producthunt:
+    'radial-gradient(circle at 40% 35%, rgba(218,85,47,0.46), rgba(244,114,182,0.16) 55%, transparent 72%)',
+  projects:
+    'radial-gradient(circle at 40% 35%, rgba(56,189,248,0.46), rgba(99,102,241,0.2) 55%, transparent 72%)',
+  search:
+    'radial-gradient(circle at 40% 35%, rgba(139,92,246,0.46), rgba(34,211,238,0.16) 55%, transparent 72%)',
+  saved:
+    'radial-gradient(circle at 40% 35%, rgba(251,191,36,0.4), rgba(236,72,153,0.14) 55%, transparent 72%)',
+  settings:
+    'radial-gradient(circle at 40% 35%, rgba(100,116,139,0.4), rgba(56,189,248,0.12) 55%, transparent 72%)',
+};
+
+const RefractionFilter: React.FC = () => (
+  <svg width="0" height="0" style={{ position: 'absolute', pointerEvents: 'none' }} aria-hidden="true">
+    <defs>
+      <filter id="ios-liquid-glass" x="-10%" y="-10%" width="120%" height="120%" filterUnits="objectBoundingBox">
+        <feTurbulence type="fractalNoise" baseFrequency="0.015 0.015" numOctaves="1" seed="7" result="noise" />
+        <feGaussianBlur in="noise" stdDeviation="2.5" result="softNoise" />
+        <feDisplacementMap in="SourceGraphic" in2="softNoise" scale="12" xChannelSelector="R" yChannelSelector="G" />
+      </filter>
+    </defs>
+  </svg>
+);
+
+const AmbientBackground: React.FC<{ tab: TabType }> = ({ tab }) => (
+  <div className="app-ambient" aria-hidden="true">
+    <AnimatePresence mode="sync">
+      <motion.div
+        key={tab}
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 0.34 }}
+        exit={{ opacity: 0 }}
+        transition={{ duration: 0.8, ease: 'easeOut' }}
+        className="ambient-orb"
+        style={{
+          top: '-110px',
+          right: '-80px',
+          width: 330,
+          height: 330,
+          background: ORB_GRADIENTS[tab],
+        }}
+      />
+    </AnimatePresence>
+
+    <div
+      className="ambient-orb orb-a"
+      style={{
+        top: '34%',
+        left: '-130px',
+        width: 300,
+        height: 300,
+        background:
+          'radial-gradient(circle, rgba(6,182,212,0.34), rgba(14,116,144,0.08) 60%, transparent 72%)',
+      }}
+    />
+    <div
+      className="ambient-orb orb-b"
+      style={{
+        bottom: '12%',
+        right: '-90px',
+        width: 280,
+        height: 280,
+        background:
+          'radial-gradient(circle, rgba(34,211,238,0.24), rgba(99,102,241,0.12) 58%, transparent 72%)',
+      }}
+    />
+    <div
+      className="absolute inset-x-0 bottom-0 h-56"
+      style={{
+        background:
+          'radial-gradient(ellipse at 50% 100%, rgba(34,211,238,0.22), transparent 68%)',
+        filter: 'blur(46px)',
+      }}
+    />
+  </div>
+);
+
+const ToastStack: React.FC = () => {
+  const { toasts } = useApp();
+
+  return (
+    <div className="fixed top-0 left-1/2 z-[70] flex w-full max-w-[430px] -translate-x-1/2 flex-col items-center gap-2 px-4 pt-safe pointer-events-none">
+      <AnimatePresence>
+        {toasts.map((toast) => (
+          <motion.div
+            key={toast.id}
+            initial={{ opacity: 0, y: -18, scale: 0.95 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -10, scale: 0.96 }}
+            transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
+            className="ios-glass-card pointer-events-auto flex w-full max-w-sm items-center gap-2.5 px-4 py-3 text-[11px] font-medium text-slate-900 dark:text-white"
+            style={{ borderRadius: 22 }}
+          >
+            {toast.type === 'success' && <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-500" />}
+            {toast.type === 'error' && <AlertCircle className="w-4 h-4 shrink-0 text-rose-500" />}
+            {toast.type === 'warning' && <AlertTriangle className="w-4 h-4 shrink-0 text-amber-500" />}
+            {toast.type === 'info' && <Info className="w-4 h-4 shrink-0 text-cyan-500" />}
+            <span className="leading-snug">{toast.text}</span>
+          </motion.div>
+        ))}
+      </AnimatePresence>
+    </div>
+  );
+};
 
 const AppContent: React.FC = () => {
-  const { activeTab, selectedItem, setSelectedItem, toasts, triggerReload, t, stats, theme, setTheme, runJob, isRunningJob } = useApp();
+  const { activeTab, selectedItem, setSelectedItem, triggerReload, theme } = useApp();
+  const [screenOrigin, setScreenOrigin] = useState('center center');
 
   const renderActiveView = () => {
     switch (activeTab) {
@@ -39,114 +147,56 @@ const AppContent: React.FC = () => {
     }
   };
 
-  const getTabTitle = () => {
-    switch (activeTab) {
-      case 'inbox':
-        return { title: 'صندوق ورودی جامع', desc: 'پیام‌های فورواردشده تلگرام، خلاصه اخبار روزانه و اعلان‌های متمرکز' };
-      case 'jobs':
-        return { title: 'رادار فرصت‌های شغلی', desc: 'آگهی‌های اسکن‌شده جابینجا و جاب‌ویژن همراه با امتیاز تطابق هوش مصنوعی' };
-      case 'producthunt':
-        return { title: 'دایجست روزانه Product Hunt', desc: 'برترین محصولات ۲۴ ساعت گذشته، بررسی هوش مصنوعی و ایده‌های ساخت Micro-SaaS' };
-      case 'projects':
-        return { title: 'ابزارها، پروژه‌ها و تلگرام', desc: 'گنجینه ابزارهای فنی، سرویس‌های رایگان و پیام‌های استخراج‌شده از تلگرام بدون حواس‌پرتی' };
-      case 'search':
-        return { title: 'جستجو و دسته‌بندی‌ها', desc: 'جستجوی هوشمند در عناوین، متن‌ها، برچسب‌ها و فیلترهای ترکیبی' };
-      case 'saved':
-        return { title: 'نشان‌شده‌ها و آرشیو', desc: 'دسترسی سریع به آیتم‌های ذخیره‌شده و بایگانی مقالات' };
-      case 'settings':
-        return { title: 'تنظیمات و وب‌هوک‌ها', desc: 'پیکربندی پروفایل، کلیدهای API، فیدهای RSS و اعلان‌های وب‌پوش' };
-    }
-  };
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }, [activeTab]);
 
-  const currentTabInfo = getTabTitle();
+  useEffect(() => {
+    const meta = document.querySelector('meta[name="theme-color"]');
+    if (meta) {
+      meta.setAttribute('content', theme === 'dark' ? '#03070E' : '#EAF0F9');
+    }
+  }, [theme]);
+
+  useLayoutEffect(() => {
+    if (selectedItem) {
+      setScreenOrigin(`center ${window.scrollY + window.innerHeight / 2}px`);
+    }
+  }, [selectedItem]);
+
+  useEffect(() => {
+    document.body.style.overflow = selectedItem ? 'hidden' : '';
+    return () => {
+      document.body.style.overflow = '';
+    };
+  }, [selectedItem]);
 
   return (
-    <div className="min-h-[100dvh] bg-slate-100 dark:bg-[#0B0B0F] text-slate-900 dark:text-slate-100 transition-colors duration-300">
-      {/* Toast notifications container */}
-      <div className="fixed top-3 left-1/2 -translate-x-1/2 z-50 flex flex-col items-center gap-2 pointer-events-none w-full max-w-sm px-4">
-        <AnimatePresence>
-          {toasts.map((toast) => (
-            <motion.div
-              key={toast.id}
-              initial={{ opacity: 0, y: -20, scale: 0.95 }}
-              animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={{ opacity: 0, y: -10, scale: 0.95 }}
-              transition={{ duration: 0.2 }}
-              className="pointer-events-auto flex items-center gap-2.5 px-4 py-2.5 rounded-2xl bg-white/95 dark:bg-[#161622]/95 backdrop-blur-xl border border-slate-200 dark:border-white/15 text-slate-900 dark:text-white text-xs shadow-xl"
-            >
-              {toast.type === 'success' && <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />}
-              {toast.type === 'error' && <AlertCircle className="w-4 h-4 text-rose-500 shrink-0" />}
-              {toast.type === 'warning' && <AlertTriangle className="w-4 h-4 text-amber-500 shrink-0" />}
-              {toast.type === 'info' && <Info className="w-4 h-4 text-indigo-500 shrink-0" />}
-              <span className="leading-snug font-medium">{toast.text}</span>
-            </motion.div>
-          ))}
-        </AnimatePresence>
-      </div>
+    <div className="app-viewport">
+      <RefractionFilter />
+      <AmbientBackground tab={activeTab} />
+      <ToastStack />
 
-      {/* Responsive Shell: Mobile-First Frame (< md) + Desktop Layout (>= md) */}
-      <div className="w-full min-h-[100dvh] md:flex md:flex-row">
-        {/* Desktop Sidebar (visible on md:) */}
-        <DesktopSidebar />
+      <div className="app-frame">
+        <div
+          className="app-screen"
+          style={{
+            transform: selectedItem ? 'translateY(7px) scale(0.955)' : 'none',
+            borderRadius: selectedItem ? 36 : 0,
+            transformOrigin: screenOrigin,
+            overflow: selectedItem ? 'hidden' : 'visible',
+            transition:
+              'transform 0.42s cubic-bezier(0.32, 0.72, 0, 1), border-radius 0.42s cubic-bezier(0.32, 0.72, 0, 1)',
+          }}
+        >
+          <Header />
 
-        {/* Main Content Area */}
-        <div className="flex-1 min-w-0 flex flex-col min-h-[100dvh] relative">
-          {/* Mobile Header (visible only on mobile) */}
-          <div className="md:hidden">
-            <Header />
-          </div>
-
-          {/* Desktop Top Bar (visible on md:) */}
-          <header className="hidden md:flex items-center justify-between px-8 py-4 bg-white/80 dark:bg-[#0E0E16]/80 backdrop-blur-xl border-b border-slate-200/80 dark:border-white/5 sticky top-0 z-20">
-            <div>
-              <h2 className="text-lg font-black text-slate-900 dark:text-white flex items-center gap-2">
-                <span>{currentTabInfo.title}</span>
-                {activeTab === 'inbox' && stats && stats.unread_count > 0 && (
-                  <span className="px-2 py-0.5 rounded-full bg-indigo-500/15 text-indigo-600 dark:text-indigo-400 text-xs font-mono font-bold">
-                    {toPersianDigits(stats.unread_count)} خوانده‌نشده
-                  </span>
-                )}
-              </h2>
-              <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                {currentTabInfo.desc}
-              </p>
-            </div>
-
-            <div className="flex items-center gap-2.5">
-              <button
-                onClick={() => (activeTab === 'jobs' ? runJob('jobs') : runJob('news'))}
-                disabled={isRunningJob}
-                className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-semibold bg-slate-100 dark:bg-white/5 hover:bg-indigo-50 dark:hover:bg-indigo-500/10 text-slate-700 dark:text-slate-200 hover:text-indigo-600 dark:hover:text-indigo-400 border border-slate-200/80 dark:border-white/5 transition-all disabled:opacity-50"
-              >
-                <RefreshCw className={`w-3.5 h-3.5 ${isRunningJob ? 'animate-spin text-indigo-500' : ''}`} />
-                <span>{activeTab === 'jobs' ? 'اجرای رادار شغلی' : 'به‌روزرسانی فیدها'}</span>
-              </button>
-
-              <button
-                onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-                className="w-9 h-9 rounded-xl flex items-center justify-center bg-slate-100 dark:bg-white/5 hover:bg-slate-200 dark:hover:bg-white/10 text-slate-700 dark:text-slate-200 border border-slate-200/80 dark:border-white/5 transition-all"
-                title={theme === 'dark' ? 'حالت روشن' : 'حالت تاریک'}
-              >
-                {theme === 'dark' ? (
-                  <Sun className="w-4 h-4 text-amber-400" />
-                ) : (
-                  <Moon className="w-4 h-4 text-indigo-600" />
-                )}
-              </button>
-            </div>
-          </header>
-
-          {/* View Container: mobile centered, desktop wide container */}
-          <main className="flex-1 w-full max-w-md md:max-w-5xl mx-auto pt-3 md:pt-6 md:px-6">
-            {renderActiveView()}
-          </main>
-
-          {/* Mobile TabBar (hidden on md:) */}
-          <TabBar />
+          <main className="relative z-10 w-full pt-1 scroll-pad">{renderActiveView()}</main>
         </div>
+
+        <TabBar detailOpen={Boolean(selectedItem)} />
       </div>
 
-      {/* Item Detail Sheet / Modal */}
       <ItemDetailModal
         item={selectedItem}
         onClose={() => setSelectedItem(null)}

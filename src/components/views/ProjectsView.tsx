@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { Project, ProjectCategory, ProjectStatus } from '../../types';
-import { initialProjects } from '../../data/mockProjects';
 import { toPersianDigits } from '../../utils/format';
 import { useApp } from '../../context/AppContext';
 import {
@@ -10,8 +9,6 @@ import {
   ExternalLink,
   Github,
   Plus,
-  CheckCircle2,
-  Clock,
   Layers,
   Code2,
   Cpu,
@@ -20,12 +17,25 @@ import {
   X,
   Search,
   Filter,
+  ClipboardPaste,
   Send,
   Bot,
   RefreshCw,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { api } from '../../api/client';
+
+function mergeProjectLists(...lists: Project[][]): Project[] {
+  const byId = new Map<string, Project>();
+  for (const list of lists) {
+    for (const project of list) {
+      byId.set(project.id, project);
+    }
+  }
+  return Array.from(byId.values()).sort(
+    (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+  );
+}
 
 export const ProjectsView: React.FC = () => {
   const { showToast } = useApp();
@@ -36,9 +46,8 @@ export const ProjectsView: React.FC = () => {
         return JSON.parse(stored);
       }
     } catch {
-      // fallback
     }
-    return initialProjects;
+    return [];
   });
 
   const [activeCategory, setActiveCategory] = useState<string>('all');
@@ -47,7 +56,6 @@ export const ProjectsView: React.FC = () => {
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
 
-  // Form state for adding project
   const [newTitle, setNewTitle] = useState('');
   const [newShortDesc, setNewShortDesc] = useState('');
   const [newFullDesc, setNewFullDesc] = useState('');
@@ -88,12 +96,29 @@ export const ProjectsView: React.FC = () => {
     }
   };
 
-  // Persist projects to localStorage
+  useEffect(() => {
+    let cancelled = false;
+    const loadRemoteProjects = async () => {
+      try {
+        const remote = await api.getProjects();
+        if (!cancelled && remote.length > 0) {
+          setProjects((prev) => mergeProjectLists(prev, remote));
+        }
+      } catch {
+      }
+    };
+    loadRemoteProjects();
+    const timer = setInterval(loadRemoteProjects, 30000);
+    return () => {
+      cancelled = true;
+      clearInterval(timer);
+    };
+  }, []);
+
   useEffect(() => {
     try {
       localStorage.setItem('hub_projects', JSON.stringify(projects));
     } catch {
-      // ignore
     }
   }, [projects]);
 
@@ -102,12 +127,11 @@ export const ProjectsView: React.FC = () => {
     showToast('در حال بررسی و همگام‌سازی پیام‌های دریافتی از بات تلگرام...', 'info');
     try {
       const res = await api.syncTelegramProjects();
-      if (res.new_projects && res.new_projects.length > 0) {
-        setProjects((prev) => [...res.new_projects, ...prev]);
-        showToast(res.message, 'success');
-      } else {
-        showToast(res.message || 'پیام جدیدی در ربات یافت نشد.', 'info');
+      const remote = await api.getProjects().catch(() => [] as Project[]);
+      if (remote.length > 0) {
+        setProjects((prev) => mergeProjectLists(prev, remote));
       }
+      showToast(res.message, res.synced_count > 0 ? 'success' : 'info');
     } catch (err) {
       showToast((err as Error).message, 'error');
     } finally {
@@ -120,10 +144,13 @@ export const ProjectsView: React.FC = () => {
     showToast('در حال استخراج مشخصات پروژه از پیام تلگرام با هوش مصنوعی جمنای...', 'info');
     try {
       const res = await api.simulateTelegramProject();
-      if (res.project) {
-        setProjects((prev) => [res.project, ...prev]);
-        showToast(res.message, 'success');
+      const remote = await api.getProjects().catch(() => [] as Project[]);
+      if (remote.length > 0) {
+        setProjects((prev) => mergeProjectLists(prev, remote));
+      } else if (res.project) {
+        setProjects((prev) => mergeProjectLists(prev, [res.project as Project]));
       }
+      showToast(res.message, 'success');
     } catch (err) {
       showToast((err as Error).message, 'error');
     } finally {
@@ -182,7 +209,6 @@ export const ProjectsView: React.FC = () => {
     setIsAddModalOpen(false);
     showToast('پروژه منتخب با موفقیت اضافه شد', 'success');
 
-    // Reset form
     setNewTitle('');
     setNewShortDesc('');
     setNewFullDesc('');
@@ -192,7 +218,6 @@ export const ProjectsView: React.FC = () => {
     setNewLive('');
   };
 
-  // Filtered projects
   const filteredProjects = projects.filter((p) => {
     if (activeCategory !== 'all' && p.category !== activeCategory) return false;
     if (activeStatus === 'favorites' && !p.is_favorite) return false;
@@ -266,148 +291,205 @@ export const ProjectsView: React.FC = () => {
     }
   };
 
-  // Metrics
   const totalCount = projects.length;
   const activeCount = projects.filter((p) => p.status === 'active').length;
   const prodCount = projects.filter((p) => p.status === 'production').length;
   const openSourceCount = projects.filter((p) => p.status === 'opensource').length;
 
   return (
-    <div className="px-4 pb-28 md:pb-12 max-w-6xl mx-auto space-y-6">
-      {/* Top Banner & Header */}
-      <div className="relative overflow-hidden rounded-3xl p-5 md:p-7 bg-gradient-to-br from-indigo-600 via-indigo-700 to-violet-800 text-white shadow-xl shadow-indigo-600/15 border border-indigo-400/20">
-        <div className="absolute top-0 end-0 -mt-8 -me-8 w-44 h-44 bg-white/10 rounded-full blur-2xl pointer-events-none" />
-        <div className="absolute bottom-0 start-0 -mb-8 -ms-8 w-40 h-40 bg-violet-400/20 rounded-full blur-2xl pointer-events-none" />
+    <div className="space-y-4 px-4 pb-4">
+      <div className="ios-glass-card ios-specular overflow-hidden p-[18px]">
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute -top-24 -start-20 h-56 w-56 rounded-full"
+          style={{
+            background:
+              'radial-gradient(circle, rgba(99,102,241,0.38), rgba(34,211,238,0.18) 55%, transparent 72%)',
+            filter: 'blur(28px)',
+          }}
+        />
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute -bottom-20 -end-16 h-48 w-48 rounded-full opacity-70"
+          style={{
+            background:
+              'radial-gradient(circle, rgba(34,211,238,0.28), transparent 70%)',
+            filter: 'blur(30px)',
+          }}
+        />
 
-        <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div className="space-y-1.5">
-            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/15 backdrop-blur-md text-xs font-semibold text-white/90 border border-white/20">
-              <FolderKanban className="w-3.5 h-3.5" />
-              <span>پروژه‌ها و دستاوردهای منتخب</span>
-            </div>
-            <h1 className="text-xl md:text-2xl font-black tracking-tight text-white">
-              ویترین پروژه‌ها و ایده‌های کلیدی
-            </h1>
-            <p className="text-xs md:text-sm text-indigo-100 max-w-xl leading-relaxed">
-              مدیریت و پایش یکپارچه پروژه‌های فعال، مخازن متن‌باز، سیستم‌های هوش مصنوعی و دستاوردهای فنی همراه با تحلیل خودکار Gemini.
-            </p>
+        <div className="relative z-10">
+          <div className="inline-flex items-center gap-1.5 rounded-full border border-indigo-300/35 bg-indigo-400/15 px-3 py-1 text-[10px] font-bold text-indigo-700 shadow-[inset_0_1px_0_rgba(255,255,255,0.28)] backdrop-blur-md dark:text-indigo-100">
+            <FolderKanban className="h-3 w-3" />
+            <span>پروژه‌ها و دستاوردهای منتخب</span>
           </div>
 
-          <div className="flex items-center gap-2 flex-wrap">
+          <h1 className="ios-glass-text mt-2 text-[22px] font-black leading-tight">
+            ویترین پروژه‌ها و ایده‌های کلیدی
+          </h1>
+          <p className="mt-1.5 text-[11px] leading-relaxed text-slate-600 dark:text-slate-300">
+            مدیریت و پایش یکپارچه پروژه‌های فعال، مخازن متن‌باز، سیستم‌های هوش مصنوعی و دستاوردهای فنی همراه با تحلیل خودکار Gemini.
+          </p>
+
+          <div className="mt-3 flex flex-wrap items-center gap-2">
             <button
               onClick={() => setIsQuickModalOpen(true)}
-              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-emerald-500 hover:bg-emerald-600 text-white font-bold text-xs shadow-lg shadow-emerald-500/20 active:scale-95 transition-all cursor-pointer"
+              className="ios-press ios-glass-emerald flex h-9 items-center gap-1.5 rounded-full px-3 text-[10.5px] font-bold"
             >
-              <span>📋 ثبت سریع پیام یا لینک (Quick Paste)</span>
+              <ClipboardPaste className="h-3.5 w-3.5" /><span>ثبت سریع پیام یا لینک (Quick Paste)</span>
             </button>
             <button
               onClick={() => setIsAddModalOpen(true)}
-              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-white text-indigo-900 hover:bg-indigo-50 font-bold text-xs shadow-lg shadow-black/15 active:scale-95 transition-all cursor-pointer"
+              className="ios-press ios-glass-pill flex h-9 items-center gap-1.5 px-3 text-[10.5px] font-bold text-slate-800 dark:text-white"
             >
-              <Plus className="w-4 h-4 stroke-[2.5]" />
+              <Plus className="h-3.5 w-3.5 stroke-[2.5]" />
               <span>افزودن دستی</span>
             </button>
           </div>
-        </div>
 
-        {/* Stats Row */}
-        <div className="relative z-10 grid grid-cols-2 sm:grid-cols-4 gap-2.5 mt-5 pt-4 border-t border-white/15">
-          <div className="bg-white/10 backdrop-blur-md rounded-2xl p-2.5 border border-white/10 text-center">
-            <span className="text-lg md:text-xl font-bold font-mono">{toPersianDigits(totalCount)}</span>
-            <p className="text-[11px] text-indigo-100 mt-0.5">کل پروژه‌ها</p>
-          </div>
-          <div className="bg-white/10 backdrop-blur-md rounded-2xl p-2.5 border border-white/10 text-center">
-            <span className="text-lg md:text-xl font-bold font-mono text-emerald-300">{toPersianDigits(prodCount)}</span>
-            <p className="text-[11px] text-indigo-100 mt-0.5">آماده بهره‌برداری</p>
-          </div>
-          <div className="bg-white/10 backdrop-blur-md rounded-2xl p-2.5 border border-white/10 text-center">
-            <span className="text-lg md:text-xl font-bold font-mono text-sky-200">{toPersianDigits(activeCount)}</span>
-            <p className="text-[11px] text-indigo-100 mt-0.5">در حال توسعه</p>
-          </div>
-          <div className="bg-white/10 backdrop-blur-md rounded-2xl p-2.5 border border-white/10 text-center">
-            <span className="text-lg md:text-xl font-bold font-mono text-amber-200">{toPersianDigits(openSourceCount)}</span>
-            <p className="text-[11px] text-indigo-100 mt-0.5">متن‌باز و ابزارها</p>
+          <div className="mt-4 grid grid-cols-2 gap-2 border-t border-white/10 pt-3">
+            <div className="ios-glass-subtile p-2.5 text-center">
+              <span className="metric-number block text-lg font-extrabold leading-none text-slate-900 dark:text-white">
+                {toPersianDigits(totalCount)}
+              </span>
+              <p className="mt-1 text-[9.5px] font-medium leading-snug text-slate-500 dark:text-slate-400">کل پروژه‌ها</p>
+            </div>
+            <div className="ios-glass-subtile p-2.5 text-center">
+              <span className="metric-number block text-lg font-extrabold leading-none text-emerald-600 dark:text-emerald-300">
+                {toPersianDigits(prodCount)}
+              </span>
+              <p className="mt-1 text-[9.5px] font-medium leading-snug text-slate-500 dark:text-slate-400">آماده بهره‌برداری</p>
+            </div>
+            <div className="ios-glass-subtile p-2.5 text-center">
+              <span className="metric-number block text-lg font-extrabold leading-none text-sky-600 dark:text-sky-300">
+                {toPersianDigits(activeCount)}
+              </span>
+              <p className="mt-1 text-[9.5px] font-medium leading-snug text-slate-500 dark:text-slate-400">در حال توسعه</p>
+            </div>
+            <div className="ios-glass-subtile p-2.5 text-center">
+              <span className="metric-number block text-lg font-extrabold leading-none text-amber-600 dark:text-amber-300">
+                {toPersianDigits(openSourceCount)}
+              </span>
+              <p className="mt-1 text-[9.5px] font-medium leading-snug text-slate-500 dark:text-slate-400">متن‌باز و ابزارها</p>
+            </div>
           </div>
         </div>
       </div>
 
-      {/* Telegram Bot Integration Card */}
-      <div className="rounded-3xl p-4 md:p-5 bg-gradient-to-br from-sky-950/50 via-[#131b2e] to-[#0f1424] border border-sky-500/30 text-white shadow-lg space-y-3.5">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-2xl bg-sky-500/20 text-sky-400 border border-sky-500/30 flex items-center justify-center shrink-0 shadow-inner">
-              <Send className="w-5 h-5" />
-            </div>
-            <div>
-              <div className="flex items-center gap-2 flex-wrap">
-                <h2 className="text-sm md:text-base font-bold text-white">
+      <div className="ios-glass-card ios-specular overflow-hidden p-4">
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute -top-20 -start-16 h-52 w-52 rounded-full"
+          style={{
+            background:
+              'radial-gradient(circle, rgba(14,165,233,0.3), rgba(34,211,238,0.14) 55%, transparent 72%)',
+            filter: 'blur(28px)',
+          }}
+        />
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute -bottom-16 -end-12 h-40 w-40 rounded-full opacity-60"
+          style={{
+            background: 'radial-gradient(circle, rgba(34,211,238,0.22), transparent 70%)',
+            filter: 'blur(26px)',
+          }}
+        />
+
+        <div className="relative z-10 space-y-3">
+          <div className="flex items-center gap-2.5">
+            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border border-sky-300/30 bg-sky-400/12 text-sky-500 shadow-[inset_0_1px_0_rgba(255,255,255,0.28)] dark:text-sky-300">
+              <Send className="h-5 w-5" />
+            </span>
+            <div className="min-w-0">
+              <div className="flex flex-wrap items-center gap-2">
+                <h2 className="text-sm font-bold text-slate-900 dark:text-white">
                   ربات تلگرام ثبت و تحلیل پروژه‌ها
                 </h2>
-                <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 flex items-center gap-1">
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                <span className="inline-flex items-center gap-1 rounded-full border border-emerald-500/30 bg-emerald-500/20 px-2 py-0.5 text-[9px] font-bold text-emerald-700 dark:text-emerald-300">
+                  <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-400" />
                   <span>متصل (Active)</span>
                 </span>
               </div>
-              <p className="text-[11px] md:text-xs text-sky-200/80 mt-0.5">
-                ربات: <a href="https://t.me/knowledgehubpwabot" target="_blank" rel="noreferrer" className="text-sky-300 font-mono underline hover:text-white">@knowledgehubpwabot</a> · شناسه مجاز تلگرام شما: <span className="font-mono text-white bg-white/10 px-1.5 py-0.5 rounded">92127061</span>
-              </p>
             </div>
           </div>
 
-          <div className="flex items-center gap-2 shrink-0">
+          <div className="ios-glass-subtile px-3 py-2 text-[10px] leading-relaxed text-slate-600 dark:text-sky-200/80">
+            ربات:{' '}
+            <a
+              href="https://t.me/knowledgehubpwabot"
+              target="_blank"
+              rel="noreferrer"
+              className="font-mono font-semibold text-sky-600 underline hover:text-sky-500 dark:text-sky-300 dark:hover:text-white"
+            >
+              @knowledgehubpwabot
+            </a>
+            <span className="mx-1 text-slate-400">·</span>
+            شناسه مجاز تلگرام شما:{' '}
+            <span className="rounded-md bg-white/10 px-1.5 py-0.5 font-mono font-semibold text-slate-800 dark:text-white">
+              92127061
+            </span>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2">
             <button
               onClick={handleSyncTelegram}
               disabled={isSyncingTelegram}
-              className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-gradient-to-r from-sky-500 to-indigo-600 hover:from-sky-400 hover:to-indigo-500 text-white font-bold text-xs shadow-md shadow-sky-600/20 active:scale-95 transition-all disabled:opacity-50"
+              className="ios-press flex h-9 items-center gap-1.5 rounded-full border border-sky-300/40 bg-gradient-to-r from-sky-500/85 to-indigo-500/85 px-3.5 text-[10.5px] font-bold text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.3),0_8px_22px_-8px_rgba(14,165,233,0.7)] transition-all disabled:opacity-50"
             >
-              <RefreshCw className={`w-3.5 h-3.5 ${isSyncingTelegram ? 'animate-spin' : ''}`} />
+              <RefreshCw className={`h-3.5 w-3.5 ${isSyncingTelegram ? 'animate-spin' : ''}`} />
               <span>{isSyncingTelegram ? 'در حال همگام‌سازی...' : 'همگام‌سازی پیام‌های تلگرام'}</span>
             </button>
 
             <button
               onClick={handleSimulateTelegram}
               disabled={isSimulatingTelegram}
-              className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-white/10 hover:bg-white/15 text-slate-200 border border-white/10 text-xs font-semibold active:scale-95 transition-all disabled:opacity-50"
+              className="ios-press ios-glass-pill flex h-9 items-center gap-1.5 px-3 text-[10.5px] font-semibold text-slate-700 transition-all disabled:opacity-50 dark:text-slate-200"
               title="تست استخراج ایده با هوش مصنوعی"
             >
-              <Sparkles className="w-3.5 h-3.5 text-amber-300" />
-              <span className="hidden sm:inline">تست ارسال ایده</span>
+              <Sparkles className="h-3.5 w-3.5 text-amber-500 dark:text-amber-300" />
+              <span>تست ارسال ایده</span>
             </button>
           </div>
-        </div>
 
-        <div className="p-3 rounded-2xl bg-black/40 border border-white/10 text-[11px] text-slate-300 leading-relaxed flex items-start gap-2">
-          <Bot className="w-4 h-4 text-sky-400 shrink-0 mt-0.5" />
-          <span>
-            <b>نحوه ثبت خودکار:</b> هر پیام، طرح یا لینک مخزن گیت‌هاب که در تلگرام به آیدی <a href="https://t.me/knowledgehubpwabot" target="_blank" rel="noreferrer" className="text-sky-400 underline font-mono">@knowledgehubpwabot</a> بفرستید، مدل هوش مصنوعی Gemini ۳.۸ Flash مشخصات پروژه (عنوان، ویژگی‌ها، استک فنی، درصد پیشرفت و امتیاز تاثیر) را تحلیل کرده و خودکار در این ویترین ذخیره می‌نماید.
-          </span>
+          <div className="ios-glass-subtile flex items-start gap-2 p-3 text-[10.5px] leading-relaxed text-slate-600 dark:text-slate-300">
+            <Bot className="mt-0.5 h-4 w-4 shrink-0 text-sky-500 dark:text-sky-400" />
+            <span>
+              <b>نحوه ثبت خودکار:</b> هر پیام، طرح یا لینک مخزن گیت‌هاب که در تلگرام به آیدی{' '}
+              <a
+                href="https://t.me/knowledgehubpwabot"
+                target="_blank"
+                rel="noreferrer"
+                className="font-mono text-sky-600 underline dark:text-sky-400"
+              >
+                @knowledgehubpwabot
+              </a>{' '}
+              بفرستید، مدل هوش مصنوعی Gemini ۳.۸ Flash مشخصات پروژه (عنوان، ویژگی‌ها، استک فنی، درصد پیشرفت و امتیاز تاثیر) را تحلیل کرده و خودکار در این ویترین ذخیره می‌نماید.
+            </span>
+          </div>
         </div>
       </div>
 
-      {/* Search and Filters Bar */}
-      <div className="space-y-3">
-        {/* Search Input */}
+      <div className="space-y-2.5">
         <div className="relative">
-          <Search className="w-4 h-4 text-slate-400 absolute start-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+          <Search className="pointer-events-none absolute start-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
           <input
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="جستجو در نام پروژه، فناوری‌ها یا توضیحات..."
-            className="w-full h-11 ps-10 pe-4 rounded-2xl bg-white dark:bg-[#151520] border border-slate-200 dark:border-white/10 text-xs md:text-sm text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 shadow-sm"
+            className="ios-field h-11 w-full rounded-full pe-10 ps-10 text-xs text-slate-900 dark:text-white"
           />
           {searchQuery && (
             <button
               onClick={() => setSearchQuery('')}
-              className="absolute end-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
+              className="absolute end-3 top-1/2 -translate-y-1/2 rounded-full p-1 text-slate-400 transition-colors hover:text-slate-600 dark:hover:text-slate-200"
             >
-              <X className="w-4 h-4" />
+              <X className="h-4 w-4" />
             </button>
           )}
         </div>
 
-        {/* Categories Chips */}
-        <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none">
+        <div className="no-scrollbar -mx-4 flex items-center gap-2 overflow-x-auto px-4 pb-1">
           {[
             { id: 'all', label: 'همه حوزه‌ها' },
             { id: 'ai', label: 'هوش مصنوعی' },
@@ -418,10 +500,10 @@ export const ProjectsView: React.FC = () => {
             <button
               key={cat.id}
               onClick={() => setActiveCategory(cat.id)}
-              className={`px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-all duration-150 ${
+              className={`ios-press shrink-0 px-3 py-2 text-[11px] font-semibold transition-all duration-150 ${
                 activeCategory === cat.id
-                  ? 'bg-indigo-600 text-white shadow-sm shadow-indigo-600/25'
-                  : 'bg-white dark:bg-white/5 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-white/10 border border-slate-200/80 dark:border-white/5'
+                  ? 'ios-glass-pill-active'
+                  : 'ios-glass-pill text-slate-600 dark:text-slate-300'
               }`}
             >
               {cat.label}
@@ -429,23 +511,22 @@ export const ProjectsView: React.FC = () => {
           ))}
         </div>
 
-        {/* Status Filter Tabs */}
-        <div className="flex items-center gap-1.5 overflow-x-auto pb-1 text-xs text-slate-500 scrollbar-none">
-          <Filter className="w-3.5 h-3.5 text-slate-400 shrink-0 ms-1" />
+        <div className="no-scrollbar -mx-4 flex items-center gap-2 overflow-x-auto px-4 pb-1">
+          <Filter className="ms-1 h-3.5 w-3.5 shrink-0 text-slate-400" />
           {[
             { id: 'all', label: 'همه وضعیت‌ها' },
             { id: 'production', label: 'آماده بهره‌برداری' },
             { id: 'active', label: 'در حال توسعه' },
             { id: 'opensource', label: 'متن‌باز' },
-            { id: 'favorites', label: 'نشان‌شده‌ها ⭐' },
+            { id: 'favorites', label: 'نشان‌شده‌ها' },
           ].map((st) => (
             <button
               key={st.id}
               onClick={() => setActiveStatus(st.id)}
-              className={`px-2.5 py-1 rounded-lg text-[11px] font-medium whitespace-nowrap transition-all ${
+              className={`ios-press shrink-0 px-2.5 py-1.5 text-[10px] font-semibold transition-all ${
                 activeStatus === st.id
-                  ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900 font-bold'
-                  : 'text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-white'
+                  ? 'ios-glass-pill-active'
+                  : 'ios-glass-pill text-slate-600 dark:text-slate-300'
               }`}
             >
               {st.label}
@@ -454,21 +535,20 @@ export const ProjectsView: React.FC = () => {
         </div>
       </div>
 
-      {/* Projects Grid: 1 col on mobile, 2 cols on md, 3 cols on xl */}
       {filteredProjects.length === 0 ? (
-        <div className="text-center py-12 px-4 rounded-3xl bg-white dark:bg-[#12121C] border border-slate-200/80 dark:border-white/5">
-          <div className="w-12 h-12 rounded-2xl bg-indigo-50 dark:bg-indigo-500/10 text-indigo-500 flex items-center justify-center mx-auto mb-3">
-            <FolderKanban className="w-6 h-6" />
+        <div className="ios-glass-card ios-specular px-6 py-9 text-center">
+          <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-2xl border border-indigo-300/25 bg-indigo-400/10 text-indigo-500 dark:text-indigo-300">
+            <FolderKanban className="h-6 w-6" />
           </div>
-          <h3 className="text-sm font-bold text-slate-800 dark:text-slate-200">
+          <h3 className="text-sm font-bold text-slate-900 dark:text-white">
             پروژه‌ای با این فیلتر پیدا نشد
           </h3>
-          <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 max-w-sm mx-auto">
+          <p className="mx-auto mt-1 max-w-xs text-[11px] leading-relaxed text-slate-500 dark:text-slate-400">
             می‌توانید فیلترها را ریست کنید یا با دکمه بالا اولین پروژه خود را به این بخش اضافه نمایید.
           </p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 gap-3">
           {filteredProjects.map((project) => {
             const statusInfo = getStatusBadge(project.status);
             return (
@@ -479,64 +559,59 @@ export const ProjectsView: React.FC = () => {
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, scale: 0.95 }}
                 onClick={() => setSelectedProject(project)}
-                className="group relative flex flex-col justify-between rounded-3xl p-5 bg-white dark:bg-[#13131E] border border-slate-200/80 dark:border-white/10 hover:border-indigo-500/40 dark:hover:border-indigo-500/40 shadow-sm hover:shadow-lg transition-all duration-200 cursor-pointer overflow-hidden"
+                className="ios-glass-card ios-press group relative flex cursor-pointer flex-col justify-between overflow-hidden p-4"
               >
-                {/* Top Badge Zone */}
                 <div>
-                  <div className="flex items-center justify-between gap-2 mb-3">
-                    <div className="flex items-center gap-1.5 flex-wrap">
-                      <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl bg-slate-100 dark:bg-white/5 text-[11px] font-semibold text-slate-700 dark:text-slate-300 border border-slate-200/60 dark:border-white/5">
+                  <div className="mb-3 flex items-start justify-between gap-2">
+                    <div className="flex flex-wrap items-center gap-1.5">
+                      <span className="inline-flex items-center gap-1 rounded-full border border-white/10 bg-white/[0.055] px-2.5 py-1 text-[10px] font-semibold text-slate-600 backdrop-blur-md dark:text-slate-300">
                         {getCategoryIcon(project.category)}
                         <span>{getCategoryLabel(project.category)}</span>
                       </span>
 
                       <span
-                        className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-xl text-[11px] font-medium border ${statusInfo.color}`}
+                        className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-[10px] font-medium ${statusInfo.color}`}
                       >
-                        <span className={`w-1.5 h-1.5 rounded-full ${statusInfo.dot}`} />
+                        <span className={`h-1.5 w-1.5 rounded-full ${statusInfo.dot}`} />
                         <span>{statusInfo.label}</span>
                       </span>
 
                       {project.source_channel === 'telegram' && (
-                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-sky-500/15 text-sky-700 dark:text-sky-300 border border-sky-500/30 text-[10px] font-bold">
-                          <Send className="w-2.5 h-2.5 text-sky-500" />
+                        <span className="inline-flex items-center gap-1 rounded-full border border-sky-500/30 bg-sky-500/15 px-2 py-0.5 text-[9px] font-bold text-sky-700 dark:text-sky-300">
+                          <Send className="h-2.5 w-2.5 text-sky-500" />
                           <span>ثبت‌شده از تلگرام</span>
                         </span>
                       )}
                     </div>
 
-                    <div className="flex items-center gap-1">
-                      <button
-                        onClick={(e) => toggleFavorite(project.id, e)}
-                        className={`w-8 h-8 rounded-xl flex items-center justify-center transition-all ${
-                          project.is_favorite
-                            ? 'text-amber-500 bg-amber-50 dark:bg-amber-500/10'
-                            : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-white/5'
-                        }`}
-                        title={project.is_favorite ? 'حذف از نشان‌شده‌ها' : 'نشان کردن'}
-                      >
-                        <Star className={`w-4 h-4 ${project.is_favorite ? 'fill-amber-400 text-amber-500' : ''}`} />
-                      </button>
-                    </div>
+                    <button
+                      onClick={(e) => toggleFavorite(project.id, e)}
+                      className={`ios-press flex h-8 w-8 shrink-0 items-center justify-center rounded-full border transition-all ${
+                        project.is_favorite
+                          ? 'border-amber-300/35 bg-amber-400/15 text-amber-500 dark:text-amber-300'
+                          : 'border-white/10 bg-white/[0.055] text-slate-400 hover:text-slate-600 dark:hover:text-slate-200'
+                      }`}
+                      title={project.is_favorite ? 'حذف از نشان‌شده‌ها' : 'نشان کردن'}
+                    >
+                      <Star className={`h-4 w-4 ${project.is_favorite ? 'fill-amber-400 text-amber-500' : ''}`} />
+                    </button>
                   </div>
 
-                  {/* Title & Description */}
-                  <h3 className="text-base font-bold text-slate-900 dark:text-white group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors leading-snug">
+                  <h3 className="text-[15px] font-bold leading-snug text-slate-900 transition-colors group-hover:text-indigo-600 dark:text-white dark:group-hover:text-indigo-300">
                     {project.title}
                   </h3>
-                  <p className="text-xs text-slate-600 dark:text-slate-300 mt-2 line-clamp-3 leading-relaxed">
+                  <p className="mt-1.5 line-clamp-3 text-[11px] leading-relaxed text-slate-600 dark:text-slate-300">
                     {project.short_desc}
                   </p>
 
-                  {/* Progress Bar */}
-                  <div className="mt-3.5 space-y-1">
-                    <div className="flex justify-between items-center text-[10px] text-slate-500 dark:text-slate-400 font-medium">
+                  <div className="mt-3 space-y-1">
+                    <div className="flex items-center justify-between text-[10px] font-medium text-slate-500 dark:text-slate-400">
                       <span>پیشرفت پروژه</span>
-                      <span className="font-mono font-bold text-indigo-600 dark:text-indigo-400">
+                      <span className="font-mono font-bold text-indigo-600 dark:text-indigo-300">
                         {toPersianDigits(project.progress_percent)}٪
                       </span>
                     </div>
-                    <div className="w-full h-1.5 rounded-full bg-slate-100 dark:bg-white/10 overflow-hidden">
+                    <div className="h-1.5 w-full overflow-hidden rounded-full bg-slate-200/80 dark:bg-white/10">
                       <div
                         className="h-full rounded-full bg-gradient-to-r from-indigo-500 to-violet-500 transition-all duration-500"
                         style={{ width: `${project.progress_percent}%` }}
@@ -544,18 +619,16 @@ export const ProjectsView: React.FC = () => {
                     </div>
                   </div>
 
-                  {/* AI Highlight */}
-                  <div className="mt-3 p-2.5 rounded-2xl bg-indigo-50/70 dark:bg-indigo-950/20 border border-indigo-100 dark:border-indigo-900/30 text-[11px] text-indigo-950 dark:text-indigo-200 flex items-start gap-2">
-                    <Sparkles className="w-3.5 h-3.5 text-indigo-500 shrink-0 mt-0.5" />
+                  <div className="ios-glass-subtile mt-3 flex items-start gap-2 p-2.5 text-[10.5px] leading-relaxed text-indigo-950 dark:text-indigo-200">
+                    <Sparkles className="mt-0.5 h-3.5 w-3.5 shrink-0 text-indigo-500 dark:text-indigo-300" />
                     <span className="leading-relaxed">{project.ai_summary}</span>
                   </div>
 
-                  {/* Tech Stack Chips */}
-                  <div className="mt-3.5 flex flex-wrap gap-1.5">
+                  <div className="mt-3 flex flex-wrap gap-1.5">
                     {project.tech_stack.map((tech, idx) => (
                       <span
                         key={idx}
-                        className="px-2 py-0.5 rounded-lg bg-slate-100 dark:bg-white/5 text-[10px] font-mono font-medium text-slate-700 dark:text-slate-300 border border-slate-200/50 dark:border-white/5"
+                        className="rounded-full border border-white/10 bg-white/[0.055] px-2 py-0.5 font-mono text-[9.5px] font-medium text-slate-600 backdrop-blur-md dark:text-slate-300"
                       >
                         {tech}
                       </span>
@@ -563,8 +636,7 @@ export const ProjectsView: React.FC = () => {
                   </div>
                 </div>
 
-                {/* Footer Actions */}
-                <div className="mt-4 pt-3.5 border-t border-slate-100 dark:border-white/5 flex items-center justify-between">
+                <div className="mt-4 flex items-center justify-between border-t border-white/[0.08] pt-3">
                   <div className="flex items-center gap-1.5">
                     {project.github_url && (
                       <a
@@ -572,9 +644,9 @@ export const ProjectsView: React.FC = () => {
                         target="_blank"
                         rel="noreferrer"
                         onClick={(e) => e.stopPropagation()}
-                        className="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl text-[11px] font-medium text-slate-700 dark:text-slate-300 bg-slate-100 dark:bg-white/5 hover:bg-slate-200 dark:hover:bg-white/10 transition-colors"
+                        className="ios-press inline-flex items-center gap-1 rounded-full border border-white/10 bg-white/[0.055] px-2.5 py-1 text-[10px] font-medium text-slate-600 backdrop-blur-md transition-colors dark:text-slate-300"
                       >
-                        <Github className="w-3.5 h-3.5" />
+                        <Github className="h-3.5 w-3.5" />
                         <span>گیت‌هاب</span>
                       </a>
                     )}
@@ -584,15 +656,15 @@ export const ProjectsView: React.FC = () => {
                         target="_blank"
                         rel="noreferrer"
                         onClick={(e) => e.stopPropagation()}
-                        className="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl text-[11px] font-medium text-indigo-700 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-500/10 hover:bg-indigo-100 dark:hover:bg-indigo-500/20 transition-colors"
+                        className="ios-press inline-flex items-center gap-1 rounded-full border border-indigo-300/30 bg-indigo-400/10 px-2.5 py-1 text-[10px] font-medium text-indigo-600 backdrop-blur-md transition-colors dark:text-indigo-300"
                       >
-                        <ExternalLink className="w-3.5 h-3.5" />
+                        <ExternalLink className="h-3.5 w-3.5" />
                         <span>مشاهده زنده</span>
                       </a>
                     )}
                   </div>
 
-                  <span className="text-[11px] font-semibold text-indigo-600 dark:text-indigo-400 group-hover:translate-x-[-2px] transition-transform">
+                  <span className="text-[10px] font-semibold text-indigo-600 transition-transform group-hover:translate-x-[-2px] dark:text-indigo-300">
                     جزئیات پروژه ←
                   </span>
                 </div>
@@ -602,90 +674,91 @@ export const ProjectsView: React.FC = () => {
         </div>
       )}
 
-      {/* Project Detail Modal */}
       <AnimatePresence>
         {selectedProject && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+          <div className="fixed inset-0 z-[60] flex items-end justify-center">
+            <div
+              className="absolute inset-0 bg-slate-950/55 backdrop-blur-md"
+              onClick={() => setSelectedProject(null)}
+            />
             <motion.div
-              initial={{ opacity: 0, scale: 0.95, y: 20 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.95, y: 20 }}
-              className="relative w-full max-w-lg max-h-[85vh] overflow-y-auto rounded-3xl bg-white dark:bg-[#151522] border border-slate-200 dark:border-white/15 p-6 shadow-2xl space-y-4"
+              initial={{ opacity: 0, y: 40 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 40 }}
+              className="ios-glass-sheet relative max-h-[90dvh] w-full max-w-[430px] overflow-y-auto rounded-t-[38px] p-5 pb-safe"
             >
+              <div className="ios-grabber" />
+
               <div className="flex items-start justify-between gap-3">
-                <div className="space-y-1">
-                  <div className="flex items-center gap-2">
-                    <span className="px-2.5 py-1 rounded-xl bg-indigo-50 dark:bg-indigo-500/10 text-xs font-semibold text-indigo-600 dark:text-indigo-400">
+                <div className="min-w-0 space-y-1">
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    <span className="rounded-full border border-indigo-300/30 bg-indigo-400/10 px-2.5 py-1 text-[10px] font-semibold text-indigo-600 dark:text-indigo-300">
                       {getCategoryLabel(selectedProject.category)}
                     </span>
                     <span
-                      className={`px-2.5 py-1 rounded-xl text-xs font-medium border ${
+                      className={`rounded-full border px-2.5 py-1 text-[10px] font-medium ${
                         getStatusBadge(selectedProject.status).color
                       }`}
                     >
                       {getStatusBadge(selectedProject.status).label}
                     </span>
                   </div>
-                  <h2 className="text-lg font-bold text-slate-900 dark:text-white mt-2">
+                  <h2 className="mt-2 text-lg font-bold text-slate-900 dark:text-white">
                     {selectedProject.title}
                   </h2>
                 </div>
 
                 <button
                   onClick={() => setSelectedProject(null)}
-                  className="w-8 h-8 rounded-full bg-slate-100 dark:bg-white/10 flex items-center justify-center text-slate-500 hover:text-slate-800 dark:hover:text-white"
+                  className="ios-press flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-white/10 bg-white/[0.055] text-slate-500 backdrop-blur-md transition-colors hover:text-slate-800 dark:hover:text-white"
                 >
-                  <X className="w-4 h-4" />
+                  <X className="h-4 w-4" />
                 </button>
               </div>
 
-              {/* Progress and Impact */}
-              <div className="grid grid-cols-2 gap-3 p-3.5 rounded-2xl bg-slate-50 dark:bg-white/5 border border-slate-200/60 dark:border-white/5">
+              <div className="ios-glass-subtile mt-4 grid grid-cols-2 gap-3 p-3.5">
                 <div>
-                  <span className="text-[11px] text-slate-500 dark:text-slate-400">پیشرفت کل</span>
-                  <div className="text-base font-bold font-mono text-indigo-600 dark:text-indigo-400 mt-0.5">
+                  <span className="text-[10px] text-slate-500 dark:text-slate-400">پیشرفت کل</span>
+                  <div className="metric-number mt-0.5 font-mono text-base font-bold text-indigo-600 dark:text-indigo-300">
                     {toPersianDigits(selectedProject.progress_percent)}٪
                   </div>
                 </div>
                 <div>
-                  <span className="text-[11px] text-slate-500 dark:text-slate-400">امتیاز اهمیت و نوآوری</span>
-                  <div className="text-base font-bold font-mono text-emerald-600 dark:text-emerald-400 mt-0.5">
+                  <span className="text-[10px] text-slate-500 dark:text-slate-400">امتیاز اهمیت و نوآوری</span>
+                  <div className="metric-number mt-0.5 font-mono text-base font-bold text-emerald-600 dark:text-emerald-300">
                     {toPersianDigits(selectedProject.impact_score)} از ۱۰۰
                   </div>
                 </div>
               </div>
 
-              {/* Full Description */}
-              <div>
-                <h4 className="text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
+              <div className="mt-4">
+                <h4 className="mb-1.5 text-[11px] font-bold text-slate-700 dark:text-slate-300">
                   شرح کامل و معماری پروژه
                 </h4>
-                <p className="text-xs md:text-sm text-slate-600 dark:text-slate-300 leading-relaxed bg-slate-50 dark:bg-white/5 p-3.5 rounded-2xl border border-slate-200/60 dark:border-white/5">
+                <p className="ios-reader rounded-[20px] p-3.5 text-[11px] leading-relaxed text-slate-600 dark:text-slate-300">
                   {selectedProject.full_desc}
                 </p>
               </div>
 
-              {/* AI Rationale */}
-              <div className="p-3.5 rounded-2xl bg-gradient-to-br from-indigo-500/10 to-violet-500/10 border border-indigo-500/20 space-y-1">
-                <div className="flex items-center gap-1.5 text-xs font-bold text-indigo-600 dark:text-indigo-400">
-                  <Sparkles className="w-3.5 h-3.5" />
+              <div className="mt-4 space-y-1 rounded-[20px] border border-indigo-400/20 bg-gradient-to-br from-indigo-500/10 to-violet-500/10 p-3.5 backdrop-blur-xl">
+                <div className="flex items-center gap-1.5 text-[11px] font-bold text-indigo-600 dark:text-indigo-300">
+                  <Sparkles className="h-3.5 w-3.5" />
                   <span>تحلیل هوش مصنوعی Gemini</span>
                 </div>
-                <p className="text-xs text-slate-700 dark:text-slate-200 leading-relaxed">
+                <p className="text-[11px] leading-relaxed text-slate-700 dark:text-slate-200">
                   {selectedProject.ai_summary}
                 </p>
               </div>
 
-              {/* Tech Stack */}
-              <div>
-                <h4 className="text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
+              <div className="mt-4">
+                <h4 className="mb-1.5 text-[11px] font-bold text-slate-700 dark:text-slate-300">
                   فناوری‌های به‌کاررفته
                 </h4>
                 <div className="flex flex-wrap gap-1.5">
                   {selectedProject.tech_stack.map((t, i) => (
                     <span
                       key={i}
-                      className="px-2.5 py-1 rounded-xl bg-slate-100 dark:bg-white/10 text-xs font-mono font-medium text-slate-800 dark:text-slate-200"
+                      className="rounded-full border border-white/10 bg-white/[0.055] px-2.5 py-1 font-mono text-[10px] font-medium text-slate-700 backdrop-blur-md dark:text-slate-200"
                     >
                       {t}
                     </span>
@@ -693,17 +766,16 @@ export const ProjectsView: React.FC = () => {
                 </div>
               </div>
 
-              {/* Modal Actions */}
-              <div className="pt-3 border-t border-slate-100 dark:border-white/10 flex items-center justify-between">
-                <div className="flex items-center gap-2">
+              <div className="mt-4 flex items-center justify-between border-t border-white/[0.08] pt-3">
+                <div className="flex flex-wrap items-center gap-2">
                   {selectedProject.github_url && (
                     <a
                       href={selectedProject.github_url}
                       target="_blank"
                       rel="noreferrer"
-                      className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-slate-900 text-white dark:bg-white dark:text-slate-900 text-xs font-bold"
+                      className="ios-press ios-glass-pill inline-flex items-center gap-1.5 px-3 py-2 text-[10.5px] font-bold text-slate-700 dark:text-slate-200"
                     >
-                      <Github className="w-4 h-4" />
+                      <Github className="h-4 w-4" />
                       <span>مخزن گیت‌هاب</span>
                     </a>
                   )}
@@ -712,9 +784,9 @@ export const ProjectsView: React.FC = () => {
                       href={selectedProject.live_url}
                       target="_blank"
                       rel="noreferrer"
-                      className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-indigo-600 text-white text-xs font-bold"
+                      className="ios-press ios-glass-pill inline-flex items-center gap-1.5 px-3 py-2 text-[10.5px] font-bold text-indigo-600 dark:text-indigo-300"
                     >
-                      <ExternalLink className="w-4 h-4" />
+                      <ExternalLink className="h-4 w-4" />
                       <span>مشاهده زنده</span>
                     </a>
                   )}
@@ -722,7 +794,7 @@ export const ProjectsView: React.FC = () => {
 
                 <button
                   onClick={() => setSelectedProject(null)}
-                  className="px-4 py-2 rounded-xl bg-slate-100 dark:bg-white/10 text-xs font-semibold text-slate-700 dark:text-slate-300"
+                  className="ios-press ios-glass-pill px-4 py-2 text-[10.5px] font-semibold text-slate-700 dark:text-slate-300"
                 >
                   بستن
                 </button>
@@ -732,20 +804,25 @@ export const ProjectsView: React.FC = () => {
         )}
       </AnimatePresence>
 
-      {/* Add Project Modal */}
       <AnimatePresence>
         {isAddModalOpen && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+          <div className="fixed inset-0 z-[60] flex items-end justify-center">
+            <div
+              className="absolute inset-0 bg-slate-950/55 backdrop-blur-md"
+              onClick={() => setIsAddModalOpen(false)}
+            />
             <motion.div
-              initial={{ opacity: 0, scale: 0.95, y: 20 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.95, y: 20 }}
-              className="relative w-full max-w-lg max-h-[90vh] overflow-y-auto rounded-3xl bg-white dark:bg-[#151522] border border-slate-200 dark:border-white/15 p-6 shadow-2xl space-y-4"
+              initial={{ opacity: 0, y: 40 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 40 }}
+              className="ios-glass-sheet relative max-h-[90dvh] w-full max-w-[430px] overflow-y-auto rounded-t-[38px] p-5 pb-safe"
             >
+              <div className="ios-grabber" />
+
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <div className="w-8 h-8 rounded-xl bg-indigo-600 text-white flex items-center justify-center">
-                    <Plus className="w-4 h-4 stroke-[2.5]" />
+                  <div className="flex h-8 w-8 items-center justify-center rounded-xl border border-indigo-300/30 bg-indigo-400/15 text-indigo-600 dark:text-indigo-300">
+                    <Plus className="h-4 w-4 stroke-[2.5]" />
                   </div>
                   <h3 className="text-base font-bold text-slate-900 dark:text-white">
                     افزودن پروژه منتخب جدید
@@ -753,15 +830,15 @@ export const ProjectsView: React.FC = () => {
                 </div>
                 <button
                   onClick={() => setIsAddModalOpen(false)}
-                  className="w-8 h-8 rounded-full bg-slate-100 dark:bg-white/10 flex items-center justify-center text-slate-500 hover:text-slate-800 dark:hover:text-white"
+                  className="ios-press flex h-8 w-8 items-center justify-center rounded-full border border-white/10 bg-white/[0.055] text-slate-500 backdrop-blur-md transition-colors hover:text-slate-800 dark:hover:text-white"
                 >
-                  <X className="w-4 h-4" />
+                  <X className="h-4 w-4" />
                 </button>
               </div>
 
-              <form onSubmit={handleAddProject} className="space-y-3.5 text-xs">
+              <form onSubmit={handleAddProject} className="mt-4 space-y-3.5 text-xs">
                 <div>
-                  <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                  <label className="mb-1 block text-[11px] font-semibold text-slate-600 dark:text-slate-300">
                     نام پروژه *
                   </label>
                   <input
@@ -770,19 +847,19 @@ export const ProjectsView: React.FC = () => {
                     value={newTitle}
                     onChange={(e) => setNewTitle(e.target.value)}
                     placeholder="مثال: بات پردازش صوت و گفتار فارسی"
-                    className="w-full h-10 px-3.5 rounded-xl bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    className="ios-field h-10 w-full rounded-2xl px-3.5 text-xs text-slate-900 dark:text-white"
                   />
                 </div>
 
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                    <label className="mb-1 block text-[11px] font-semibold text-slate-600 dark:text-slate-300">
                       دسته‌بندی
                     </label>
                     <select
                       value={newCategory}
                       onChange={(e) => setNewCategory(e.target.value as ProjectCategory)}
-                      className="w-full h-10 px-3 rounded-xl bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                      className="ios-field h-10 w-full rounded-2xl px-3 text-xs text-slate-900 dark:text-white"
                     >
                       <option value="ai">هوش مصنوعی</option>
                       <option value="fullstack">فول‌استک</option>
@@ -793,13 +870,13 @@ export const ProjectsView: React.FC = () => {
                   </div>
 
                   <div>
-                    <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                    <label className="mb-1 block text-[11px] font-semibold text-slate-600 dark:text-slate-300">
                       وضعیت کنونی
                     </label>
                     <select
                       value={newStatus}
                       onChange={(e) => setNewStatus(e.target.value as ProjectStatus)}
-                      className="w-full h-10 px-3 rounded-xl bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                      className="ios-field h-10 w-full rounded-2xl px-3 text-xs text-slate-900 dark:text-white"
                     >
                       <option value="active">در حال توسعه</option>
                       <option value="production">آماده بهره‌برداری</option>
@@ -810,7 +887,7 @@ export const ProjectsView: React.FC = () => {
                 </div>
 
                 <div>
-                  <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                  <label className="mb-1 block text-[11px] font-semibold text-slate-600 dark:text-slate-300">
                     توضیح کوتاه و هدف پروژه *
                   </label>
                   <textarea
@@ -819,12 +896,12 @@ export const ProjectsView: React.FC = () => {
                     value={newShortDesc}
                     onChange={(e) => setNewShortDesc(e.target.value)}
                     placeholder="خلاصه‌ای از قابلیت‌ها و مشکلاتی که این پروژه حل می‌کند..."
-                    className="w-full p-3 rounded-xl bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    className="ios-field w-full rounded-2xl p-3 text-xs text-slate-900 dark:text-white"
                   />
                 </div>
 
                 <div>
-                  <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                  <label className="mb-1 block text-[11px] font-semibold text-slate-600 dark:text-slate-300">
                     فناوری‌ها و استک (با ویرگول انگلیسی جدا کنید)
                   </label>
                   <input
@@ -832,13 +909,13 @@ export const ProjectsView: React.FC = () => {
                     value={newTechStack}
                     onChange={(e) => setNewTechStack(e.target.value)}
                     placeholder="Python, FastAPI, React, PyTorch, Docker"
-                    className="w-full h-10 px-3.5 rounded-xl bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 text-slate-900 dark:text-white font-mono text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    className="ios-field h-10 w-full rounded-2xl px-3.5 font-mono text-xs text-slate-900 dark:text-white"
                   />
                 </div>
 
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                    <label className="mb-1 block text-[11px] font-semibold text-slate-600 dark:text-slate-300">
                       لینک گیت‌هاب (اختیاری)
                     </label>
                     <input
@@ -846,12 +923,12 @@ export const ProjectsView: React.FC = () => {
                       value={newGithub}
                       onChange={(e) => setNewGithub(e.target.value)}
                       placeholder="https://github.com/..."
-                      className="w-full h-10 px-3 rounded-xl bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 text-slate-900 dark:text-white font-mono text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                      className="ios-field h-10 w-full rounded-2xl px-3 font-mono text-xs text-slate-900 dark:text-white"
                     />
                   </div>
 
                   <div>
-                    <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                    <label className="mb-1 block text-[11px] font-semibold text-slate-600 dark:text-slate-300">
                       لینک دموی زنده (اختیاری)
                     </label>
                     <input
@@ -859,22 +936,22 @@ export const ProjectsView: React.FC = () => {
                       value={newLive}
                       onChange={(e) => setNewLive(e.target.value)}
                       placeholder="https://..."
-                      className="w-full h-10 px-3 rounded-xl bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 text-slate-900 dark:text-white font-mono text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                      className="ios-field h-10 w-full rounded-2xl px-3 font-mono text-xs text-slate-900 dark:text-white"
                     />
                   </div>
                 </div>
 
-                <div className="pt-2 flex items-center justify-end gap-2">
+                <div className="flex items-center justify-end gap-2 pt-2">
                   <button
                     type="button"
                     onClick={() => setIsAddModalOpen(false)}
-                    className="px-4 py-2.5 rounded-xl bg-slate-100 dark:bg-white/10 text-slate-700 dark:text-slate-300 font-semibold"
+                    className="ios-press ios-glass-pill px-4 py-2.5 text-[11px] font-semibold text-slate-700 dark:text-slate-300"
                   >
                     انصراف
                   </button>
                   <button
                     type="submit"
-                    className="px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold shadow-md shadow-indigo-600/30 active:scale-95 transition-all"
+                    className="ios-press ios-glass-emerald rounded-full px-5 py-2.5 text-[11px] font-bold"
                   >
                     ذخیره و ثبت پروژه
                   </button>
@@ -883,39 +960,44 @@ export const ProjectsView: React.FC = () => {
             </motion.div>
           </div>
         )}
-        {/* Quick Paste Modal */}
         {isQuickModalOpen && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+          <div className="fixed inset-0 z-[60] flex items-end justify-center">
+            <div
+              className="absolute inset-0 bg-slate-950/55 backdrop-blur-md"
+              onClick={() => setIsQuickModalOpen(false)}
+            />
             <motion.div
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.95 }}
-              className="w-full max-w-lg bg-white dark:bg-[#161622] rounded-3xl p-6 border border-slate-200 dark:border-white/10 shadow-2xl space-y-4"
+              initial={{ opacity: 0, y: 40 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 40 }}
+              className="ios-glass-sheet relative max-h-[90dvh] w-full max-w-[430px] overflow-y-auto rounded-t-[38px] p-5 pb-safe"
             >
-              <div className="flex items-center justify-between border-b border-slate-100 dark:border-white/10 pb-3">
+              <div className="ios-grabber" />
+
+              <div className="flex items-center justify-between border-b border-white/[0.08] pb-3">
                 <div className="flex items-center gap-2">
-                  <div className="w-8 h-8 rounded-xl bg-emerald-500/15 text-emerald-500 flex items-center justify-center">
-                    <Sparkles className="w-4 h-4" />
+                  <div className="flex h-8 w-8 items-center justify-center rounded-xl border border-emerald-300/30 bg-emerald-400/15 text-emerald-600 dark:text-emerald-300">
+                    <Sparkles className="h-4 w-4" />
                   </div>
-                  <h3 className="font-bold text-base text-slate-900 dark:text-white">
+                  <h3 className="text-base font-bold text-slate-900 dark:text-white">
                     ثبت سریع پیام تلگرام یا لینک (Quick Paste)
                   </h3>
                 </div>
                 <button
                   onClick={() => setIsQuickModalOpen(false)}
-                  className="p-1 rounded-xl text-slate-400 hover:text-slate-600 dark:hover:text-white cursor-pointer"
+                  className="ios-press flex h-8 w-8 items-center justify-center rounded-full border border-white/10 bg-white/[0.055] text-slate-500 backdrop-blur-md transition-colors hover:text-slate-800 dark:hover:text-white"
                 >
-                  <X className="w-5 h-5" />
+                  <X className="h-5 w-5" />
                 </button>
               </div>
 
-              <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed">
+              <p className="mt-3 text-[11px] leading-relaxed text-slate-600 dark:text-slate-300">
                 هر پست یا متنی را که از تلگرام، گیت‌هاب یا وب کپی کرده‌اید اینجا Paste کنید. هوش مصنوعی جمنای خودکار عنوان، قابلیت‌ها، استک فنی و لینک‌ها را استخراج کرده و به گنجینه ابزارها اضافه می‌کند (همراه با ارسال اعلان وب‌پوش روی گوشی).
               </p>
 
-              <form onSubmit={handleQuickAdd} className="space-y-4 text-xs">
+              <form onSubmit={handleQuickAdd} className="mt-4 space-y-4 text-xs">
                 <div>
-                  <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
+                  <label className="mb-1.5 block text-[11px] font-semibold text-slate-600 dark:text-slate-300">
                     متن پیام، توضیح یا لینک:
                   </label>
                   <textarea
@@ -924,7 +1006,7 @@ export const ProjectsView: React.FC = () => {
                     value={quickPasteText}
                     onChange={(e) => setQuickPasteText(e.target.value)}
                     placeholder="مثال: معرفی کتابخانه LangGraph Studio برای دیباگ ایجنت‌های هوش مصنوعی. ریپازیتوری: https://github.com/langchain-ai/langgraph-studio ..."
-                    className="w-full p-3.5 rounded-2xl bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500 leading-relaxed"
+                    className="ios-field w-full rounded-2xl p-3.5 text-xs leading-relaxed text-slate-900 dark:text-white"
                   />
                 </div>
 
@@ -932,16 +1014,16 @@ export const ProjectsView: React.FC = () => {
                   <button
                     type="button"
                     onClick={() => setIsQuickModalOpen(false)}
-                    className="px-4 py-2.5 rounded-xl bg-slate-100 dark:bg-white/10 text-slate-700 dark:text-slate-300 font-semibold cursor-pointer"
+                    className="ios-press ios-glass-pill px-4 py-2.5 text-[11px] font-semibold text-slate-700 dark:text-slate-300"
                   >
                     انصراف
                   </button>
                   <button
                     type="submit"
                     disabled={isQuickAdding || !quickPasteText.trim()}
-                    className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold shadow-md shadow-emerald-600/30 active:scale-95 transition-all disabled:opacity-50 cursor-pointer"
+                    className="ios-press ios-glass-emerald flex items-center gap-2 rounded-full px-5 py-2.5 text-[11px] font-bold disabled:opacity-50"
                   >
-                    <Sparkles className={`w-4 h-4 ${isQuickAdding ? 'animate-spin' : ''}`} />
+                    <Sparkles className={`h-4 w-4 ${isQuickAdding ? 'animate-spin' : ''}`} />
                     <span>{isQuickAdding ? 'در حال تحلیل با هوش مصنوعی...' : 'تحلیل و ذخیره در گنجینه'}</span>
                   </button>
                 </div>
