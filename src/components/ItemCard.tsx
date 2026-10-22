@@ -12,7 +12,7 @@ import {
 import { motion, useAnimation, PanInfo, useReducedMotion } from 'motion/react';
 import { Item, ItemType } from '../types';
 import { useApp } from '../context/AppContext';
-import { formatRelativeTime, normalizeTag } from '../utils/format';
+import { formatRelativeTime } from '../utils/format';
 import { hapticTap, hapticImpact } from '../utils/haptics';
 import { JobScoreRing } from './JobScoreRing';
 
@@ -381,14 +381,6 @@ export const ItemCard: React.FC<ItemCardProps> = ({
           <div className="mt-3 flex items-center justify-between gap-2 border-t-0.5px border-[var(--separator)] pt-2.5">
             <span className="flex min-w-0 items-center gap-1.5 text-[11px] text-[var(--text-tertiary)]">
               <span className="truncate font-medium text-[var(--accent)]">{item.category}</span>
-              {item.tags.length > 0 && (
-                <>
-                  <span aria-hidden="true">·</span>
-                  <span className="truncate">
-                    <bdi dir="ltr">#{normalizeTag(item.tags[0])}</bdi>
-                  </span>
-                </>
-              )}
             </span>
 
             <span className="flex shrink-0 items-center gap-0.5 text-[11px] font-medium text-[var(--text-tertiary)]">

@@ -578,8 +578,14 @@ html:not(.dark) .ios-seg-thumb {
 /* =====================================================================
    Text fields
    ===================================================================== */
+/* width lives in a lower layer so Tailwind w-* utilities can override it */
+@layer components {
+  .ios-field {
+    width: 100%;
+  }
+}
+
 .ios-field {
-  width: 100%;
   min-height: 46px;
   padding: 0 14px;
   border-radius: var(--r-field);
