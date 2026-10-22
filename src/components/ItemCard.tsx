@@ -68,6 +68,7 @@ export const ItemRow: React.FC<ItemRowProps> = ({
   const controls = useAnimation();
   const reduce = useReducedMotion();
   const [swipe, setSwipe] = useState<'favorite' | 'archive' | null>(null);
+  const [dragging, setDragging] = useState(false);
 
   const meta = SOURCE_META[item.type] ?? SOURCE_META.news;
   const SourceIcon = meta.icon;
@@ -91,11 +92,13 @@ export const ItemRow: React.FC<ItemRowProps> = ({
     }
     await controls.start({ x: 0, transition: { type: 'spring', stiffness: 380, damping: 32 } });
     setSwipe(null);
+    setDragging(false);
   };
 
   return (
     <motion.div
       className="ios-swipe-row"
+      data-dragging={dragging}
       initial={reduce ? undefined : { opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{
@@ -135,10 +138,11 @@ export const ItemRow: React.FC<ItemRowProps> = ({
         drag="x"
         dragConstraints={{ left: -110, right: 110 }}
         dragElastic={0.12}
+        onDragStart={() => setDragging(true)}
         onDrag={handleDrag}
         onDragEnd={handleDragEnd}
         animate={controls}
-        className="relative bg-[var(--grouped-card)]"
+        className="relative"
       >
         <button
           type="button"
@@ -222,6 +226,7 @@ export const ItemCard: React.FC<ItemCardProps> = ({
   const controls = useAnimation();
   const reduce = useReducedMotion();
   const [swipe, setSwipe] = useState<'favorite' | 'archive' | null>(null);
+  const [dragging, setDragging] = useState(false);
 
   const meta = SOURCE_META[item.type] ?? SOURCE_META.news;
   const SourceIcon = meta.icon;
@@ -245,10 +250,14 @@ export const ItemCard: React.FC<ItemCardProps> = ({
     }
     await controls.start({ x: 0, transition: { type: 'spring', stiffness: 380, damping: 32 } });
     setSwipe(null);
+    setDragging(false);
   };
 
   return (
-    <div className="ios-swipe-row mb-3 overflow-hidden rounded-[var(--r-card)]">
+    <div
+      className="ios-swipe-row ios-card mb-3 overflow-hidden"
+      data-dragging={dragging}
+    >
       <div className="ios-swipe-bg">
         <span
           className="ios-swipe-action"
@@ -276,10 +285,11 @@ export const ItemCard: React.FC<ItemCardProps> = ({
         drag="x"
         dragConstraints={{ left: -110, right: 110 }}
         dragElastic={0.12}
+        onDragStart={() => setDragging(true)}
         onDrag={handleDrag}
         onDragEnd={handleDragEnd}
         animate={controls}
-        className="relative bg-[var(--grouped-card)]"
+        className="relative"
       >
         <article
           onClick={() => {

@@ -36,9 +36,10 @@ export const TabBar: React.FC<TabBarProps> = ({ detailOpen = false }) => {
       aria-label="ناوبری اصلی"
       dir="rtl"
       style={{
-        transform: detailOpen ? 'translateY(10px) scale(0.96)' : 'none',
+        transform: detailOpen ? 'translateY(14px) scale(0.94)' : 'none',
+        opacity: detailOpen ? 0 : 1,
         transformOrigin: 'center bottom',
-        transition: 'transform 0.32s cubic-bezier(0.32, 0.72, 0, 1)',
+        transition: 'transform 0.32s cubic-bezier(0.32, 0.72, 0, 1), opacity 0.24s ease',
       }}
     >
       {tabs.map((tab) => {
@@ -62,6 +63,15 @@ export const TabBar: React.FC<TabBarProps> = ({ detailOpen = false }) => {
             data-active={isActive}
             className="ios-tab-item"
           >
+            {isActive && (
+              <motion.span
+                layoutId="tab-lens"
+                className="ios-tab-lens"
+                transition={reduce ? { duration: 0 } : { type: 'spring', stiffness: 420, damping: 34 }}
+                aria-hidden="true"
+              />
+            )}
+
             <span className="relative flex items-center justify-center">
               <motion.span
                 animate={
