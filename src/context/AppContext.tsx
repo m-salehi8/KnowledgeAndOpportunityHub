@@ -1,10 +1,26 @@
-import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
-import { Item, HubStats, AppSettings } from '../types';
+import React, {
+  createContext,
+  useContext,
+  useState,
+  useEffect,
+  useCallback,
+  useMemo,
+  ReactNode,
+} from 'react';
+import { Item, HubStats } from '../types';
 import { translations, Language } from '../utils/i18n';
 import { api } from '../api/client';
 import { detectPWA, PWAState } from '../utils/pwa';
 
-export type TabType = 'inbox' | 'jobs' | 'producthunt' | 'projects' | 'search' | 'saved' | 'settings';
+/** The five native tabs of the app. */
+export type TabType = 'inbox' | 'jobs' | 'search' | 'saved' | 'settings';
+
+/** Sections that live inside the Inbox tab (UISegmentedControl). */
+export type InboxSection = 'feed' | 'projects' | 'producthunt';
+
+export type ThemePreference = 'light' | 'dark' | 'system';
+
+const TAB_IDS: TabType[] = ['inbox', 'jobs', 'search', 'saved', 'settings'];
 
 interface ToastMessage {
   id: string;
@@ -16,10 +32,13 @@ interface AppContextType {
   lang: Language;
   setLang: (l: Language) => void;
   t: typeof translations['fa'];
-  theme: 'dark' | 'light';
-  setTheme: (t: 'dark' | 'light') => void;
+  theme: ThemePreference;
+  resolvedTheme: 'light' | 'dark';
+  setTheme: (t: ThemePreference) => void;
   activeTab: TabType;
   setActiveTab: (tab: TabType) => void;
+  inboxSection: InboxSection;
+  setInboxSection: (section: InboxSection) => void;
   selectedItem: Item | null;
   setSelectedItem: (item: Item | null) => void;
   stats: HubStats | null;
@@ -36,10 +55,29 @@ interface AppContextType {
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
+const readStoredTheme = (): ThemePreference => {
+  try {
+    const stored = localStorage.getItem('hub_theme') as ThemePreference | null;
+    if (stored === 'light' || stored === 'dark' || stored === 'system') return stored;
+  } catch {
+    // ignore
+  }
+  return 'system';
+};
+
+const systemPrefersDark = (): boolean =>
+  typeof window !== 'undefined' &&
+  typeof window.matchMedia === 'function' &&
+  window.matchMedia('(prefers-color-scheme: dark)').matches;
+
 export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [lang, setLangState] = useState<Language>('fa');
-  const [theme, setThemeState] = useState<'dark' | 'light'>('dark');
+  const [theme, setThemeState] = useState<ThemePreference>('system');
+  const [resolvedTheme, setResolvedTheme] = useState<'light' | 'dark'>(
+    systemPrefersDark() ? 'dark' : 'light'
+  );
   const [activeTab, setActiveTab] = useState<TabType>('inbox');
+  const [inboxSection, setInboxSection] = useState<InboxSection>('feed');
   const [selectedItem, setSelectedItem] = useState<Item | null>(null);
   const [stats, setStats] = useState<HubStats | null>(null);
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
@@ -61,20 +99,33 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     }
   }, []);
 
-  // Sync theme
-  const setTheme = useCallback((newTheme: 'dark' | 'light') => {
+  // Sync theme preference (light / dark / system)
+  const setTheme = useCallback((newTheme: ThemePreference) => {
     setThemeState(newTheme);
-    if (newTheme === 'dark') {
-      document.documentElement.classList.add('dark');
-    } else {
-      document.documentElement.classList.remove('dark');
-    }
     try {
       localStorage.setItem('hub_theme', newTheme);
     } catch {
       // ignore
     }
   }, []);
+
+  // Resolve the effective theme and apply the `dark` class on <html>
+  useEffect(() => {
+    const apply = () => {
+      const isDark = theme === 'system' ? systemPrefersDark() : theme === 'dark';
+      setResolvedTheme(isDark ? 'dark' : 'light');
+      document.documentElement.classList.toggle('dark', isDark);
+      const meta = document.querySelector('meta[name="theme-color"]');
+      if (meta) meta.setAttribute('content', isDark ? '#000000' : '#F2F2F7');
+    };
+
+    apply();
+
+    if (theme !== 'system' || typeof window.matchMedia !== 'function') return;
+    const query = window.matchMedia('(prefers-color-scheme: dark)');
+    query.addEventListener('change', apply);
+    return () => query.removeEventListener('change', apply);
+  }, [theme]);
 
   // Toast notification system
   const showToast = useCallback((text: string, type: ToastMessage['type'] = 'info') => {
@@ -101,7 +152,10 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const runJob = useCallback(
     async (jobType: 'news' | 'jobs') => {
       setIsRunningJob(true);
-      showToast(lang === 'fa' ? 'در حال اجرای تسک و تحلیل با هوش مصنوعی...' : 'Running scraping & AI analysis...', 'info');
+      showToast(
+        lang === 'fa' ? 'در حال اجرای تسک و تحلیل با هوش مصنوعی...' : 'Running scraping & AI analysis...',
+        'info'
+      );
       try {
         const res = await api.runJob(jobType);
         showToast(res.summary, 'success');
@@ -118,7 +172,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   const runIranJob = useCallback(async () => {
     setIsRunningJob(true);
-    showToast('در حال اسکن زنده جابینجا و جاب‌ویژن و تطبیق رزومه پایتون با جمنای...', 'info');
+    showToast('در حال اسکن زنده جابینجا و جاب‌ویژن و تطبیق رزومه با هوش مصنوعی...', 'info');
     try {
       const res = await api.scrapeIranJobs();
       showToast(res.summary, 'success');
@@ -134,21 +188,10 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   // Initialize
   useEffect(() => {
     setLang('fa');
-
-    try {
-      const storedTheme = localStorage.getItem('hub_theme') as 'dark' | 'light';
-      if (storedTheme) {
-        setTheme(storedTheme);
-      } else {
-        setTheme('dark');
-      }
-    } catch {
-      setTheme('dark');
-    }
-
+    setThemeState(readStoredTheme());
     setPwaState(detectPWA());
     refreshStats();
-  }, [setLang, setTheme, refreshStats]);
+  }, [setLang, refreshStats]);
 
   useEffect(() => {
     refreshStats();
@@ -159,17 +202,28 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     if (typeof window === 'undefined') return;
 
     const params = new URLSearchParams(window.location.search);
-    const tabParam = params.get('tab') as TabType;
-    if (tabParam && ['inbox', 'jobs', 'producthunt', 'projects', 'search', 'saved', 'settings'].includes(tabParam)) {
-      setActiveTab(tabParam);
+    const tabParam = params.get('tab');
+    if (tabParam === 'producthunt') {
+      setActiveTab('inbox');
+      setInboxSection('producthunt');
+    } else if (tabParam === 'projects') {
+      setActiveTab('inbox');
+      setInboxSection('projects');
+    } else if (TAB_IDS.includes(tabParam as TabType)) {
+      setActiveTab(tabParam as TabType);
     }
 
     const handleSWMessage = (event: MessageEvent) => {
-      if (event.data?.type === 'NAVIGATE_TAB' && event.data.tab) {
-        const targetTab = event.data.tab as TabType;
-        if (['inbox', 'jobs', 'producthunt', 'projects', 'search', 'saved', 'settings'].includes(targetTab)) {
-          setActiveTab(targetTab);
-        }
+      const target = event.data?.tab as string | undefined;
+      if (!target) return;
+      if (target === 'producthunt') {
+        setActiveTab('inbox');
+        setInboxSection('producthunt');
+      } else if (target === 'projects') {
+        setActiveTab('inbox');
+        setInboxSection('projects');
+      } else if (TAB_IDS.includes(target as TabType)) {
+        setActiveTab(target as TabType);
       }
     };
 
@@ -179,33 +233,55 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     };
   }, []);
 
-  return (
-    <AppContext.Provider
-      value={{
-        lang,
-        setLang,
-        t,
-        theme,
-        setTheme,
-        activeTab,
-        setActiveTab,
-        selectedItem,
-        setSelectedItem,
-        stats,
-        refreshStats,
-        toasts,
-        showToast,
-        pwaState,
-        reloadTrigger,
-        triggerReload,
-        runJob,
-        runIranJob,
-        isRunningJob,
-      }}
-    >
-      {children}
-    </AppContext.Provider>
+  const value = useMemo<AppContextType>(
+    () => ({
+      lang,
+      setLang,
+      t,
+      theme,
+      resolvedTheme,
+      setTheme,
+      activeTab,
+      setActiveTab,
+      inboxSection,
+      setInboxSection,
+      selectedItem,
+      setSelectedItem,
+      stats,
+      refreshStats,
+      toasts,
+      showToast,
+      pwaState,
+      reloadTrigger,
+      triggerReload,
+      runJob,
+      runIranJob,
+      isRunningJob,
+    }),
+    [
+      lang,
+      setLang,
+      t,
+      theme,
+      resolvedTheme,
+      setTheme,
+      activeTab,
+      inboxSection,
+      selectedItem,
+      stats,
+      refreshStats,
+      toasts,
+      showToast,
+      pwaState,
+      reloadTrigger,
+      triggerReload,
+      runJob,
+      runIranJob,
+      isRunningJob,
+    ]
   );
+
+  return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
 };
 
 export const useApp = (): AppContextType => {

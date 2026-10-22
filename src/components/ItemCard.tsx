@@ -6,290 +6,388 @@ import {
   Mail,
   Star,
   Archive,
-  Check,
   ChevronLeft,
+  Rocket,
 } from 'lucide-react';
-import { motion, useAnimation, PanInfo } from 'motion/react';
+import { motion, useAnimation, PanInfo, useReducedMotion } from 'motion/react';
 import { Item, ItemType } from '../types';
 import { useApp } from '../context/AppContext';
 import { formatRelativeTime, normalizeTag } from '../utils/format';
+import { hapticTap, hapticImpact } from '../utils/haptics';
 import { JobScoreRing } from './JobScoreRing';
 
-interface ItemCardProps {
-  item: Item;
+interface ItemHandlers {
   onFavoriteToggle?: (item: Item) => void;
   onArchiveToggle?: (item: Item) => void;
   onSelect?: (item: Item) => void;
+  /** Opens the job status menu (jobs only). */
+  onStatusChange?: (item: Item) => void;
 }
 
-const SOURCE_STYLES: Record<
+interface ItemRowProps extends ItemHandlers {
+  item: Item;
+  index?: number;
+}
+
+interface ItemCardProps extends ItemHandlers {
+  item: Item;
+}
+
+const SOURCE_META: Record<
   ItemType,
-  { wrap: string; icon: React.ComponentType<{ className?: string }>; badge: string }
+  {
+    icon: React.ComponentType<{ className?: string; strokeWidth?: number }>;
+    tone: 'accent' | 'success' | 'warning' | 'neutral';
+  }
 > = {
-  telegram: {
-    wrap: 'bg-sky-400/15 text-sky-300 border-sky-300/25',
-    icon: Send,
-    badge: 'bg-sky-400/12 text-sky-200 border-sky-300/20',
-  },
-  news: {
-    wrap: 'bg-emerald-400/15 text-emerald-300 border-emerald-300/25',
-    icon: Newspaper,
-    badge: 'bg-amber-400/12 text-amber-200 border-amber-300/20',
-  },
-  job: {
-    wrap: 'bg-indigo-400/15 text-indigo-300 border-indigo-300/25',
-    icon: Compass,
-    badge: 'bg-emerald-400/12 text-emerald-200 border-emerald-300/20',
-  },
-  email: {
-    wrap: 'bg-amber-400/15 text-amber-300 border-amber-300/25',
-    icon: Mail,
-    badge: 'bg-amber-400/12 text-amber-200 border-amber-300/20',
-  },
-  producthunt: {
-    wrap: 'bg-orange-400/15 text-orange-300 border-orange-300/25',
-    icon: Compass,
-    badge: 'bg-orange-400/12 text-orange-200 border-orange-300/20',
-  },
+  telegram: { icon: Send, tone: 'accent' },
+  news: { icon: Newspaper, tone: 'success' },
+  job: { icon: Compass, tone: 'accent' },
+  email: { icon: Mail, tone: 'warning' },
+  producthunt: { icon: Rocket, tone: 'neutral' },
 };
 
+const TONE_STYLE: Record<string, { bg: string; fg: string }> = {
+  accent: { bg: 'var(--accent-soft)', fg: 'var(--accent)' },
+  success: { bg: 'var(--success-soft)', fg: 'var(--success)' },
+  warning: { bg: 'var(--warning-soft)', fg: 'var(--warning)' },
+  neutral: { bg: 'var(--fill-quaternary)', fg: 'var(--text-secondary)' },
+};
+
+/* ------------------------------------------------------------------ */
+/* Grouped row — used by Inbox / Saved / Search lists                  */
+/* ------------------------------------------------------------------ */
+export const ItemRow: React.FC<ItemRowProps> = ({
+  item,
+  index,
+  onFavoriteToggle,
+  onArchiveToggle,
+  onSelect,
+}) => {
+  const { lang } = useApp();
+  const controls = useAnimation();
+  const reduce = useReducedMotion();
+  const [swipe, setSwipe] = useState<'favorite' | 'archive' | null>(null);
+
+  const meta = SOURCE_META[item.type] ?? SOURCE_META.news;
+  const SourceIcon = meta.icon;
+  const tone = TONE_STYLE[meta.tone];
+  const relative = formatRelativeTime(item.created_at, lang);
+
+  const handleDrag = (_: unknown, info: PanInfo) => {
+    if (info.offset.x > 44) setSwipe('favorite');
+    else if (info.offset.x < -44) setSwipe('archive');
+    else setSwipe(null);
+  };
+
+  const handleDragEnd = async (_: unknown, info: PanInfo) => {
+    const threshold = 88;
+    if (info.offset.x > threshold && onFavoriteToggle) {
+      hapticImpact();
+      onFavoriteToggle(item);
+    } else if (info.offset.x < -threshold && onArchiveToggle) {
+      hapticImpact();
+      onArchiveToggle(item);
+    }
+    await controls.start({ x: 0, transition: { type: 'spring', stiffness: 380, damping: 32 } });
+    setSwipe(null);
+  };
+
+  return (
+    <motion.div
+      className="ios-swipe-row"
+      initial={reduce ? undefined : { opacity: 0, y: 12 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{
+        duration: 0.22,
+        delay: reduce ? 0 : Math.min(index ?? 0, 8) * 0.03,
+        ease: [0.32, 0.72, 0, 1],
+      }}
+    >
+      {/* Swipe action field */}
+      <div className="ios-swipe-bg">
+        <span
+          className="ios-swipe-action"
+          style={{
+            color: 'var(--success)',
+            opacity: swipe === 'favorite' ? 1 : 0.35,
+            transform: swipe === 'favorite' ? 'scale(1)' : 'scale(0.94)',
+          }}
+        >
+          <Star className="h-[18px] w-[18px]" strokeWidth={1.75} />
+          <span>{item.is_favorite ? 'حذف نشان' : 'ذخیره'}</span>
+        </span>
+
+        <span
+          className="ios-swipe-action"
+          style={{
+            color: 'var(--warning)',
+            opacity: swipe === 'archive' ? 1 : 0.35,
+            transform: swipe === 'archive' ? 'scale(1)' : 'scale(0.94)',
+          }}
+        >
+          <span>{item.is_archived ? 'خروج از آرشیو' : 'بایگانی'}</span>
+          <Archive className="h-[18px] w-[18px]" strokeWidth={1.75} />
+        </span>
+      </div>
+
+      <motion.div
+        drag="x"
+        dragConstraints={{ left: -110, right: 110 }}
+        dragElastic={0.12}
+        onDrag={handleDrag}
+        onDragEnd={handleDragEnd}
+        animate={controls}
+        className="relative bg-[var(--grouped-card)]"
+      >
+        <button
+          type="button"
+          onClick={() => {
+            hapticTap();
+            onSelect?.(item);
+          }}
+          className="flex w-full items-start gap-3 py-3 pe-4 ps-[22px] text-start"
+        >
+          {!item.is_read && (
+            <span
+              className="ios-unread-dot absolute start-[7px] top-[15px]"
+              aria-label="خوانده‌نشده"
+            />
+          )}
+
+          <span
+            className="mt-0.5 inline-flex h-[34px] w-[34px] shrink-0 items-center justify-center rounded-[10px]"
+            style={{ background: tone.bg, color: tone.fg }}
+            aria-hidden="true"
+          >
+            <SourceIcon className="h-[18px] w-[18px]" strokeWidth={1.75} />
+          </span>
+
+          <span className="min-w-0 flex-1">
+            <span
+              dir="auto"
+              className="line-clamp-2 block text-[15px] font-semibold leading-[1.55] text-[var(--text-primary)]"
+            >
+              {item.title}
+            </span>
+
+            <span
+              dir="auto"
+              className="line-clamp-2 mt-1 block text-[13px] font-normal leading-[1.7] text-[var(--text-secondary)]"
+            >
+              {item.summary}
+            </span>
+
+            <span className="mt-1.5 flex items-center gap-1.5 text-[11px] text-[var(--text-tertiary)]">
+              <span dir="auto" className="max-w-[140px] truncate font-medium">
+                {item.source_name}
+              </span>
+              <span aria-hidden="true">·</span>
+              <span className="whitespace-nowrap">{relative}</span>
+              {item.type === 'job' && item.job_meta?.remote && (
+                <>
+                  <span aria-hidden="true">·</span>
+                  <span className="font-medium text-[var(--success)]">دورکاری</span>
+                </>
+              )}
+            </span>
+          </span>
+
+          {item.type === 'job' && item.job_meta ? (
+            <JobScoreRing score={item.job_meta.match_score} size={40} strokeWidth={3.5} />
+          ) : (
+            <ChevronLeft
+              className="mt-2 h-4 w-4 shrink-0 text-[var(--text-quaternary)]"
+              strokeWidth={1.75}
+              aria-hidden="true"
+            />
+          )}
+        </button>
+      </motion.div>
+    </motion.div>
+  );
+};
+
+/* ------------------------------------------------------------------ */
+/* Rich card — used by the Jobs list                                   */
+/* ------------------------------------------------------------------ */
 export const ItemCard: React.FC<ItemCardProps> = ({
   item,
   onFavoriteToggle,
   onArchiveToggle,
   onSelect,
+  onStatusChange,
 }) => {
   const { lang, t } = useApp();
   const controls = useAnimation();
-  const [swipeAction, setSwipeAction] = useState<'favorite' | 'archive' | null>(null);
+  const reduce = useReducedMotion();
+  const [swipe, setSwipe] = useState<'favorite' | 'archive' | null>(null);
 
-  const sourceStyle = SOURCE_STYLES[item.type] ?? SOURCE_STYLES.news;
-  const SourceIcon = sourceStyle.icon;
+  const meta = SOURCE_META[item.type] ?? SOURCE_META.news;
+  const SourceIcon = meta.icon;
+  const tone = TONE_STYLE[meta.tone];
+  const relative = formatRelativeTime(item.created_at, lang);
 
   const handleDrag = (_: unknown, info: PanInfo) => {
-    if (info.offset.x > 50) {
-      setSwipeAction('favorite');
-    } else if (info.offset.x < -50) {
-      setSwipeAction('archive');
-    } else {
-      setSwipeAction(null);
-    }
+    if (info.offset.x > 44) setSwipe('favorite');
+    else if (info.offset.x < -44) setSwipe('archive');
+    else setSwipe(null);
   };
 
   const handleDragEnd = async (_: unknown, info: PanInfo) => {
-    const threshold = 85;
-    if (info.offset.x > threshold) {
-      if (onFavoriteToggle) onFavoriteToggle(item);
-    } else if (info.offset.x < -threshold) {
-      if (onArchiveToggle) onArchiveToggle(item);
+    const threshold = 88;
+    if (info.offset.x > threshold && onFavoriteToggle) {
+      hapticImpact();
+      onFavoriteToggle(item);
+    } else if (info.offset.x < -threshold && onArchiveToggle) {
+      hapticImpact();
+      onArchiveToggle(item);
     }
-    await controls.start({ x: 0, transition: { type: 'spring', damping: 26, stiffness: 320 } });
-    setSwipeAction(null);
-  };
-
-  const relativeDate = formatRelativeTime(item.created_at, lang);
-
-  const handleStarClick = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    if (onFavoriteToggle) onFavoriteToggle(item);
+    await controls.start({ x: 0, transition: { type: 'spring', stiffness: 380, damping: 32 } });
+    setSwipe(null);
   };
 
   return (
-    <div className="relative mb-3 overflow-hidden rounded-[26px] select-none">
-      {/* Swipe action field */}
-      <div className="absolute inset-0 flex items-center justify-between overflow-hidden rounded-[26px] px-5">
-        <div
-          className={`flex items-center gap-2 rounded-full px-3 py-1.5 text-[11px] font-bold transition-all duration-200 ${
-            swipeAction === 'favorite'
-              ? 'bg-amber-400/25 text-amber-100 shadow-[0_0_24px_-4px_rgba(251,191,36,0.6)]'
-              : 'text-amber-200/35'
-          }`}
+    <div className="ios-swipe-row mb-3 overflow-hidden rounded-[var(--r-card)]">
+      <div className="ios-swipe-bg">
+        <span
+          className="ios-swipe-action"
+          style={{
+            color: 'var(--success)',
+            opacity: swipe === 'favorite' ? 1 : 0.35,
+          }}
         >
-          <Star className="h-4 w-4 fill-current" />
+          <Star className="h-[18px] w-[18px]" strokeWidth={1.75} />
           <span>{item.is_favorite ? t.unfavorite : t.favorite}</span>
-        </div>
-
-        <div
-          className={`flex items-center gap-2 rounded-full px-3 py-1.5 text-[11px] font-bold transition-all duration-200 ${
-            swipeAction === 'archive'
-              ? 'bg-rose-500/25 text-rose-100 shadow-[0_0_24px_-4px_rgba(244,63,94,0.6)]'
-              : 'text-rose-200/35'
-          }`}
+        </span>
+        <span
+          className="ios-swipe-action"
+          style={{
+            color: 'var(--warning)',
+            opacity: swipe === 'archive' ? 1 : 0.35,
+          }}
         >
           <span>{item.is_archived ? t.unarchive : t.archive}</span>
-          <Archive className="h-4 w-4" />
-        </div>
+          <Archive className="h-[18px] w-[18px]" strokeWidth={1.75} />
+        </span>
       </div>
 
-      {/* Glass card */}
-      <motion.article
+      <motion.div
         drag="x"
-        dragConstraints={{ left: -112, right: 112 }}
-        dragElastic={0.35}
+        dragConstraints={{ left: -110, right: 110 }}
+        dragElastic={0.12}
         onDrag={handleDrag}
         onDragEnd={handleDragEnd}
         animate={controls}
-        onClick={() => onSelect && onSelect(item)}
-        className={`ios-glass-card ios-specular relative z-10 cursor-pointer p-[18px] transition-transform duration-200 active:scale-[0.985] ${
-          item.is_read ? 'opacity-[0.86]' : ''
-        }`}
-        style={{ borderRadius: 26 }}
+        className="relative bg-[var(--grouped-card)]"
       >
-        {/* Unread edge light */}
-        {!item.is_read && (
-          <span
-            aria-hidden="true"
-            className="absolute inset-y-6 start-0 w-[3px] rounded-full"
-            style={{
-              background: 'linear-gradient(180deg, #67E8F9, #6366F1)',
-              boxShadow: '0 0 14px rgba(103,232,249,0.55)',
-            }}
-          />
-        )}
+        <article
+          onClick={() => {
+            hapticTap();
+            onSelect?.(item);
+          }}
+          className="p-4"
+          style={{ opacity: item.is_read ? 0.82 : 1 }}
+        >
+          <div className="mb-2.5 flex items-start justify-between gap-3">
+            <div className="flex min-w-0 items-center gap-2">
+              <span
+                className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-[9px]"
+                style={{ background: tone.bg, color: tone.fg }}
+                aria-hidden="true"
+              >
+                <SourceIcon className="h-4 w-4" strokeWidth={1.75} />
+              </span>
+              <span dir="auto" className="max-w-[150px] truncate text-[12px] font-semibold text-[var(--text-primary)]">
+                {item.source_name}
+              </span>
+              <span aria-hidden="true" className="text-[var(--text-quaternary)]">
+                ·
+              </span>
+              <span className="whitespace-nowrap text-[11px] text-[var(--text-secondary)]">
+                {relative}
+              </span>
+            </div>
 
-        {/* Meta row */}
-        <div className="mb-2.5 flex items-center justify-between gap-2">
-          <div className="flex min-w-0 items-center gap-2">
-            {!item.is_read && (
-              <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-cyan-300 shadow-[0_0_8px_#22D3EE]" />
+            {item.type === 'job' && item.job_meta && (
+              <JobScoreRing score={item.job_meta.match_score} size={46} strokeWidth={4} />
             )}
-
-            <span
-              className={`inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-[9px] border backdrop-blur-md ${sourceStyle.wrap}`}
-            >
-              <SourceIcon className="h-3 w-3" />
-            </span>
-
-            <span
-              dir="auto"
-              className={`max-w-[128px] truncate rounded-full border px-2 py-[3px] text-[10px] font-bold backdrop-blur-md ${sourceStyle.badge}`}
-            >
-              {item.source_name}
-            </span>
-
-            <span aria-hidden="true" className="text-[10px] text-slate-500/60">
-              ·
-            </span>
-            <span className="whitespace-nowrap text-[10px] font-medium text-slate-500 dark:text-slate-400">
-              {relativeDate}
-            </span>
           </div>
 
-          <div className="flex shrink-0 items-center gap-1">
-            {item.is_read && <Check className="h-3.5 w-3.5 text-slate-500" />}
-            <button
-              type="button"
-              onClick={handleStarClick}
-              className="ios-press flex h-8 w-8 items-center justify-center rounded-full border border-white/10 bg-white/[0.045] text-slate-400 backdrop-blur-md transition-colors hover:text-amber-300"
-              title={item.is_favorite ? t.unfavorite : t.favorite}
-              aria-label={item.is_favorite ? t.unfavorite : t.favorite}
-            >
-              <Star
-                className={`h-4 w-4 ${
-                  item.is_favorite
-                    ? 'fill-amber-400 text-amber-400'
-                    : 'text-slate-400/80 dark:text-slate-500'
-                }`}
-              />
-            </button>
-          </div>
-        </div>
-
-        {/* Title + score */}
-        <div className="mb-2 flex items-start justify-between gap-3">
           <h2
             dir="auto"
-            className="line-clamp-2 flex-1 text-[14px] font-bold leading-[1.55] text-slate-900 dark:text-slate-50"
+            className="line-clamp-2 text-[16px] font-semibold leading-[1.6] text-[var(--text-primary)]"
           >
             {item.title}
           </h2>
 
+          <p
+            dir="auto"
+            className="mt-1.5 line-clamp-2 text-[13px] leading-[1.7] text-[var(--text-secondary)]"
+          >
+            {item.summary}
+          </p>
+
           {item.type === 'job' && item.job_meta && (
-            <div className="shrink-0 -mt-0.5">
-              <JobScoreRing score={item.job_meta.match_score} size={44} strokeWidth={3} />
-            </div>
-          )}
-        </div>
-
-        {/* Summary */}
-        <p
-          dir="auto"
-          className="mb-3 line-clamp-2 text-[11.5px] font-normal leading-relaxed text-slate-600 dark:text-slate-300/85"
-        >
-          {item.summary}
-        </p>
-
-        {/* Job chips */}
-        {item.type === 'job' && item.job_meta && (
-          <div className="mb-3 flex flex-wrap items-center gap-1.5">
-            {item.source_name.includes('jobinja') && (
-              <span className="rounded-full border border-blue-300/25 bg-blue-400/12 px-2 py-[3px] text-[9.5px] font-bold text-blue-200 backdrop-blur-md">
-                جابینجا
-              </span>
-            )}
-            {item.source_name.includes('jobvision') && (
-              <span className="rounded-full border border-teal-300/25 bg-teal-400/12 px-2 py-[3px] text-[9.5px] font-bold text-teal-200 backdrop-blur-md">
-                جاب‌ویژن
-              </span>
-            )}
-            {item.job_meta.remote && (
-              <span className="rounded-full border border-emerald-300/25 bg-emerald-400/12 px-2 py-[3px] text-[9.5px] font-bold text-emerald-200 backdrop-blur-md">
-                دورکاری
-              </span>
-            )}
-            {item.job_meta.requirements?.slice(0, 3).map((req, idx) => (
-              <span
-                key={idx}
-                className="rounded-full border border-white/10 bg-white/[0.055] px-2 py-[3px] text-[9.5px] font-medium text-slate-300 backdrop-blur-md"
-              >
-                <bdi dir="ltr">{req}</bdi>
-              </span>
-            ))}
-            {item.job_meta.email_sent_to && (
-              <span className="ms-auto flex items-center gap-1 rounded-full border border-amber-300/25 bg-amber-400/12 px-2 py-[3px] text-[9.5px] font-bold text-amber-200">
-                <Mail className="h-2.5 w-2.5" />
-                ایمیل شد
-              </span>
-            )}
-          </div>
-        )}
-
-        {/* Footer */}
-        <div className="flex items-center justify-between gap-2 border-t border-white/[0.07] pt-2.5">
-          {item.type === 'job' && item.job_meta ? (
-            <div className="flex min-w-0 items-center gap-1.5 text-[10.5px]">
-              <span className="max-w-[120px] shrink-0 truncate font-bold text-cyan-200 dark:text-cyan-300">
-                <bdi dir="ltr">{item.job_meta.company}</bdi>
-              </span>
-              <span aria-hidden="true" className="text-slate-500/50">
-                ·
-              </span>
-              <span className="truncate text-slate-500 dark:text-slate-400">
-                <bdi dir="ltr">{item.job_meta.location}</bdi>
-              </span>
-            </div>
-          ) : (
-            <div className="flex min-w-0 items-center gap-1.5 text-[10.5px]">
-              <span className="truncate font-semibold text-cyan-200/90 dark:text-cyan-300">{item.category}</span>
-              {item.tags.length > 0 && (
-                <>
-                  <span aria-hidden="true" className="text-slate-500/50">
-                    ·
-                  </span>
-                  <span className="truncate text-slate-500 dark:text-slate-400">
-                    <bdi dir="ltr">#{normalizeTag(item.tags[0])}</bdi>
-                  </span>
-                </>
+            <div className="mt-3 flex flex-wrap items-center gap-1.5">
+              {item.job_meta.company && (
+                <span className="ios-chip h-[26px] min-h-[26px] px-2.5 text-[11px]">
+                  <bdi dir="ltr">{item.job_meta.company}</bdi>
+                </span>
+              )}
+              {item.job_meta.location && (
+                <span className="ios-chip h-[26px] min-h-[26px] px-2.5 text-[11px]">
+                  <bdi dir="ltr">{item.job_meta.location}</bdi>
+                </span>
+              )}
+              {item.job_meta.remote && (
+                <span className="ios-chip h-[26px] min-h-[26px] px-2.5 text-[11px]" data-tone="success">
+                  دورکاری
+                </span>
+              )}
+              {item.job_meta.salary_text && (
+                <span className="ios-chip h-[26px] min-h-[26px] px-2.5 text-[11px]" data-tone="warning">
+                  <bdi dir="ltr">{item.job_meta.salary_text}</bdi>
+                </span>
+              )}
+              {onStatusChange && item.job_meta && (
+                <button
+                  type="button"
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    hapticTap();
+                    onStatusChange(item);
+                  }}
+                  className="ios-chip h-[26px] min-h-[26px] px-2.5 text-[11px]"
+                  data-tone="accent"
+                  aria-label="تغییر وضعیت درخواست"
+                >
+                  <span>{t[`status_${item.job_meta.status}` as keyof typeof t]}</span>
+                </button>
               )}
             </div>
           )}
 
-          <div className="flex shrink-0 items-center gap-0.5 text-[10px] font-medium text-slate-500 dark:text-slate-400">
-            <span>{t.reader_mode}</span>
-            <ChevronLeft className="h-3 w-3 opacity-70" />
+          <div className="mt-3 flex items-center justify-between gap-2 border-t-0.5px border-[var(--separator)] pt-2.5">
+            <span className="flex min-w-0 items-center gap-1.5 text-[11px] text-[var(--text-tertiary)]">
+              <span className="truncate font-medium text-[var(--accent)]">{item.category}</span>
+              {item.tags.length > 0 && (
+                <>
+                  <span aria-hidden="true">·</span>
+                  <span className="truncate">
+                    <bdi dir="ltr">#{normalizeTag(item.tags[0])}</bdi>
+                  </span>
+                </>
+              )}
+            </span>
+
+            <span className="flex shrink-0 items-center gap-0.5 text-[11px] font-medium text-[var(--text-tertiary)]">
+              {t.reader_mode}
+              <ChevronLeft className="h-3.5 w-3.5" strokeWidth={1.75} />
+            </span>
           </div>
-        </div>
-      </motion.article>
+        </article>
+      </motion.div>
     </div>
   );
 };

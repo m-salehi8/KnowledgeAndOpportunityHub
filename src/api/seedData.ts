@@ -2,7 +2,7 @@ import { Item, Source, Profile, AppSettings } from '../types';
 
 export const INITIAL_PROFILE: Profile = {
   full_name: 'محمدرضا صالحی',
-  email: 'job.msalehi@gmail.com',
+  email: 'user@example.com',
   bio: '۵ سال تجربه در ساخت سرویس با Python، Django و FastAPI، طراحی پایپ‌لاین‌های داده، موتورهای ناهمگام DAG و خودکارسازی فرآیندهای سازمانی با ایجنت‌های هوش مصنوعی.',
   skills: [
     'Python',
@@ -63,7 +63,7 @@ export const INITIAL_SETTINGS: AppSettings = {
   job_radar_time: '08:00',
   min_job_score_notify: 80,
   api_url: '',
-  app_token: 'hub_usr_sec_99384721',
+  app_token: 'mock-preview-token',
   theme: 'dark',
   language: 'fa',
 };
@@ -120,13 +120,13 @@ export const INITIAL_SOURCES: Source[] = [
 ];
 
 export const INITIAL_ITEMS: Item[] = [
-  // 0. Latest Daily Report Email to mamadreza8138@gmail.com
+  // 0. Latest Daily Report Email to user@example.com
   {
     id: 'email-report-today',
     type: 'email',
     title: 'گزارش روزانه هوش مصنوعی: رادار آگهی‌های پایتون (جابینجا و جاب‌ویژن)',
-    summary: 'ارسال خودکار به mamadreza8138@gmail.com: شناسایی ۴ موقعیت با تطابق بالای ۹۵٪ در جابینجا و جاب‌ویژن متناسب با رزومه ۴+ سال پایتون، جنگو و میکروسرویس.',
-    content: `به: mamadreza8138@gmail.com
+    summary: 'ارسال خودکار به user@example.com: شناسایی ۴ موقعیت با تطابق بالای ۹۵٪ در جابینجا و جاب‌ویژن متناسب با رزومه ۴+ سال پایتون، جنگو و میکروسرویس.',
+    content: `به: user@example.com
 فرستنده: هوش مصنوعی جمنای (Knowledge & Job Radar)
 ساعت ارسال: ۰۸:۰۰ صبح امروز
 موضوع: گزارش روزانه موقعیت‌های جدید برنامه‌نویس بک‌اند پایتون (جابینجا و جاب‌ویژن)
@@ -165,7 +165,7 @@ export const INITIAL_ITEMS: Item[] = [
 - نوع همکاری: استان تهران / هیبرید
 - نیازمندی‌ها: FastAPI, Microservices, Asyncio, PostgreSQL
 - لینک آگهی: https://jobinja.ir/jobs?filters%5Bkeywords%5D%5B%5D=FastAPI`,
-    source_url: 'mailto:mamadreza8138@gmail.com',
+    source_url: 'mailto:user@example.com',
     source_name: 'گزارش روزانه ایمیل',
     category: 'گزارش روزانه',
     tags: ['Email', 'Jobinja', 'Jobvision', 'Python', 'Report', 'Daily'],
@@ -209,7 +209,7 @@ export const INITIAL_ITEMS: Item[] = [
       status: 'saved',
       source_platform: 'jobinja',
       requirements: ['Python', 'Django', 'DRF', 'PostgreSQL', 'Docker', 'Microservices'],
-      email_sent_to: 'mamadreza8138@gmail.com',
+      email_sent_to: 'user@example.com',
     },
   },
 
@@ -246,7 +246,7 @@ export const INITIAL_ITEMS: Item[] = [
       status: 'interview',
       source_platform: 'jobinja',
       requirements: ['Python', 'FastAPI', 'AI Systems', 'PostgreSQL', 'Docker', 'Celery'],
-      email_sent_to: 'mamadreza8138@gmail.com',
+      email_sent_to: 'user@example.com',
     },
   },
 
@@ -282,7 +282,7 @@ export const INITIAL_ITEMS: Item[] = [
       status: 'new',
       source_platform: 'jobvision',
       requirements: ['Python', 'Web Scraping', 'Django', 'FastAPI', 'PostgreSQL'],
-      email_sent_to: 'mamadreza8138@gmail.com',
+      email_sent_to: 'user@example.com',
     },
   },
 
@@ -319,7 +319,7 @@ export const INITIAL_ITEMS: Item[] = [
       status: 'new',
       source_platform: 'jobinja',
       requirements: ['Python', 'FastAPI', 'Microservices', 'PostgreSQL', 'Asyncio'],
-      email_sent_to: 'mamadreza8138@gmail.com',
+      email_sent_to: 'user@example.com',
     },
   },
   {

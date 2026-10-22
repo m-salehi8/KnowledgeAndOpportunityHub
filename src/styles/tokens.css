@@ -1,0 +1,197 @@
+/* =====================================================================
+   Knowledge & Opportunity Hub — Design Tokens
+   iOS 18 / HIG inspired. Single source of truth for colour, elevation,
+   spacing, typography, radius and motion.
+   ===================================================================== */
+
+@layer base {
+  :root {
+    /* ---------------- Typography ---------------- */
+    --font-sans: 'Vazirmatn', 'Sahel', -apple-system, BlinkMacSystemFont, 'SF Pro Text',
+      'SF Pro Display', 'Segoe UI', system-ui, sans-serif;
+    --font-mono: 'SF Mono', 'JetBrains Mono', ui-monospace, 'Menlo', monospace;
+
+    /* iOS type scale */
+    --fs-large-title: 34px;
+    --fs-title-2: 22px;
+    --fs-title-3: 20px;
+    --fs-headline: 17px;
+    --fs-body: 17px;
+    --fs-subhead: 15px;
+    --fs-footnote: 13px;
+    --fs-caption: 12px;
+    --fs-caption-2: 11px;
+
+    /* Persian reading rhythm */
+    --lh-tight: 1.25;
+    --lh-snug: 1.4;
+    --lh-body: 1.7;
+
+    --fw-regular: 400;
+    --fw-medium: 500;
+    --fw-semibold: 600;
+    --fw-bold: 700;
+
+    /* ---------------- Spacing (8pt grid) ---------------- */
+    --sp-1: 4px;
+    --sp-2: 8px;
+    --sp-3: 12px;
+    --sp-4: 16px;
+    --sp-5: 20px;
+    --sp-6: 24px;
+    --sp-8: 32px;
+    --sp-10: 40px;
+    --sp-12: 48px;
+
+    --gutter: 16px;
+
+    /* ---------------- Radius ---------------- */
+    --r-card: 18px;
+    --r-card-lg: 20px;
+    --r-control: 12px;
+    --r-chip: 999px;
+    --r-sheet: 24px;
+    --r-field: 12px;
+
+    /* ---------------- Motion ---------------- */
+    --ease-standard: cubic-bezier(0.4, 0, 0.2, 1);
+    --ease-ios: cubic-bezier(0.32, 0.72, 0, 1);
+    --dur-fast: 160ms;
+    --dur-med: 240ms;
+    --dur-slow: 320ms;
+
+    /* spring presets mirrored in JS (motion/react) */
+    --spring-stiffness: 380;
+    --spring-damping: 32;
+
+    /* ---------------- Brand / accent ---------------- */
+    --accent: #0a84ff;
+    --accent-strong: #409cff;
+    --accent-deep: #0060df;
+    --accent-soft: rgba(10, 132, 255, 0.14);
+    --accent-separator: rgba(10, 132, 255, 0.32);
+    --on-accent: #ffffff;
+
+    /* ---------------- Semantic ---------------- */
+    --success: #30d158;
+    --success-soft: rgba(48, 209, 88, 0.14);
+    --warning: #ff9f0a;
+    --warning-soft: rgba(255, 159, 10, 0.14);
+    --danger: #ff453a;
+    --danger-soft: rgba(255, 69, 58, 0.14);
+    --info: #64d2ff;
+    --teal: #40c8e0;
+
+    /* ---------------- Dark surfaces (default) ---------------- */
+    --bg-base: #000000;
+    --bg-elev-1: #0b0b0f;
+    --bg-elev-2: #141418;
+    --bg-elev-3: #1c1c21;
+
+    --text-primary: #ffffff;
+    --text-secondary: rgba(235, 235, 245, 0.62);
+    --text-tertiary: rgba(235, 235, 245, 0.38);
+    --text-quaternary: rgba(235, 235, 245, 0.18);
+
+    --separator: rgba(84, 84, 88, 0.55);
+    --fill-quaternary: rgba(118, 118, 128, 0.12);
+    --fill-tertiary: rgba(118, 118, 128, 0.24);
+    --fill-secondary: rgba(118, 118, 128, 0.36);
+
+    --grouped-bg: #000000;
+    --grouped-card: #141418;
+    --grouped-card-pressed: #1f1f24;
+
+    --glass-bg: rgba(24, 24, 28, 0.68);
+    --glass-bg-strong: rgba(20, 20, 24, 0.82);
+    --glass-border: rgba(255, 255, 255, 0.12);
+    --glass-border-strong: rgba(255, 255, 255, 0.18);
+    --glass-blur: blur(30px) saturate(180%);
+    --glass-shadow: 0 12px 34px -18px rgba(0, 0, 0, 0.9);
+
+    --nav-bar-bg: rgba(14, 14, 18, 0.72);
+    --tab-bar-bg: rgba(14, 14, 18, 0.78);
+    --tab-bar-border: rgba(255, 255, 255, 0.1);
+    --tab-label: rgba(235, 235, 245, 0.6);
+    --tab-label-active: #0a84ff;
+
+    --control-bg: rgba(118, 118, 128, 0.24);
+    --control-track-off: rgba(120, 120, 128, 0.32);
+    --control-track-on: #30d158;
+
+    --field-bg: rgba(118, 118, 128, 0.16);
+    --field-border: rgba(255, 255, 255, 0.08);
+    --field-text: #ffffff;
+
+    --skeleton-base: rgba(118, 118, 128, 0.14);
+    --skeleton-highlight: rgba(118, 118, 128, 0.3);
+
+    --focus-ring: 0 0 0 3px rgba(10, 132, 255, 0.45);
+  }
+
+  /* ---------------- Light surfaces (grouped, Settings-like) ---------------- */
+  html:not(.dark) {
+    color-scheme: light;
+
+    --accent: #007aff;
+    --accent-strong: #0069d9;
+    --accent-deep: #0058b0;
+    --accent-soft: rgba(0, 122, 255, 0.12);
+    --accent-separator: rgba(0, 122, 255, 0.3);
+    --on-accent: #ffffff;
+
+    --success: #248a3d;
+    --success-soft: rgba(52, 199, 89, 0.14);
+    --warning: #c93400;
+    --warning-soft: rgba(255, 159, 10, 0.16);
+    --danger: #d70015;
+    --danger-soft: rgba(255, 59, 48, 0.12);
+    --info: #0071a8;
+    --teal: #0084a8;
+
+    --bg-base: #f2f2f7;
+    --bg-elev-1: #ffffff;
+    --bg-elev-2: #ffffff;
+    --bg-elev-3: #ffffff;
+
+    --text-primary: #000000;
+    --text-secondary: rgba(60, 60, 67, 0.6);
+    --text-tertiary: rgba(60, 60, 67, 0.36);
+    --text-quaternary: rgba(60, 60, 67, 0.18);
+
+    --separator: rgba(60, 60, 67, 0.29);
+    --fill-quaternary: rgba(118, 118, 128, 0.12);
+    --fill-tertiary: rgba(118, 118, 128, 0.2);
+    --fill-secondary: rgba(118, 118, 128, 0.32);
+
+    --grouped-bg: #f2f2f7;
+    --grouped-card: #ffffff;
+    --grouped-card-pressed: #ebebf0;
+
+    --glass-bg: rgba(255, 255, 255, 0.76);
+    --glass-bg-strong: rgba(255, 255, 255, 0.88);
+    --glass-border: rgba(255, 255, 255, 0.9);
+    --glass-border-strong: rgba(60, 60, 67, 0.08);
+    --glass-blur: blur(28px) saturate(180%);
+    --glass-shadow: 0 12px 30px -18px rgba(0, 0, 0, 0.35);
+
+    --nav-bar-bg: rgba(242, 242, 247, 0.78);
+    --tab-bar-bg: rgba(255, 255, 255, 0.82);
+    --tab-bar-border: rgba(60, 60, 67, 0.16);
+    --tab-label: rgba(60, 60, 67, 0.6);
+    --tab-label-active: #007aff;
+
+    --control-bg: rgba(118, 118, 128, 0.16);
+    --control-track-off: rgba(120, 120, 128, 0.32);
+    --control-track-on: #34c759;
+
+    --field-bg: rgba(118, 118, 128, 0.12);
+    --field-border: rgba(60, 60, 67, 0.1);
+    --field-text: #000000;
+
+    --skeleton-base: rgba(118, 118, 128, 0.12);
+    --skeleton-highlight: rgba(118, 118, 128, 0.26);
+
+    --focus-ring: 0 0 0 3px rgba(0, 122, 255, 0.35);
+  }
+}

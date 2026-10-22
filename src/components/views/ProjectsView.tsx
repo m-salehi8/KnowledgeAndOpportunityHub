@@ -37,7 +37,7 @@ function mergeProjectLists(...lists: Project[][]): Project[] {
   );
 }
 
-export const ProjectsView: React.FC = () => {
+export const ProjectsView: React.FC<{ embedded?: boolean }> = ({ embedded = false }) => {
   const { showToast } = useApp();
   const [projects, setProjects] = useState<Project[]>(() => {
     try {
@@ -297,137 +297,101 @@ export const ProjectsView: React.FC = () => {
   const openSourceCount = projects.filter((p) => p.status === 'opensource').length;
 
   return (
-    <div className="space-y-4 px-4 pb-4">
-      <div className="ios-glass-card ios-specular overflow-hidden p-[18px]">
-        <div
-          aria-hidden="true"
-          className="pointer-events-none absolute -top-24 -start-20 h-56 w-56 rounded-full"
-          style={{
-            background:
-              'radial-gradient(circle, rgba(99,102,241,0.38), rgba(34,211,238,0.18) 55%, transparent 72%)',
-            filter: 'blur(28px)',
-          }}
-        />
-        <div
-          aria-hidden="true"
-          className="pointer-events-none absolute -bottom-20 -end-16 h-48 w-48 rounded-full opacity-70"
-          style={{
-            background:
-              'radial-gradient(circle, rgba(34,211,238,0.28), transparent 70%)',
-            filter: 'blur(30px)',
-          }}
-        />
-
+    <div className={embedded ? 'space-y-4' : 'space-y-4 px-4 pb-4'}>
+      <div className="ios-card overflow-hidden p-4">
         <div className="relative z-10">
-          <div className="inline-flex items-center gap-1.5 rounded-full border border-indigo-300/35 bg-indigo-400/15 px-3 py-1 text-[10px] font-bold text-indigo-700 shadow-[inset_0_1px_0_rgba(255,255,255,0.28)] backdrop-blur-md dark:text-indigo-100">
-            <FolderKanban className="h-3 w-3" />
+          <span className="ios-chip h-[24px] min-h-[24px] px-2.5 text-[11px]" data-tone="accent">
+            <FolderKanban className="h-3 w-3" strokeWidth={1.75} />
             <span>پروژه‌ها و دستاوردهای منتخب</span>
-          </div>
+          </span>
 
-          <h1 className="ios-glass-text mt-2 text-[22px] font-black leading-tight">
+          <h1 className="mt-2 text-[20px] font-bold leading-[1.6] text-[var(--text-primary)]">
             ویترین پروژه‌ها و ایده‌های کلیدی
           </h1>
-          <p className="mt-1.5 text-[11px] leading-relaxed text-slate-600 dark:text-slate-300">
+          <p className="mt-1.5 text-[13px] leading-[1.7] text-[var(--text-secondary)]">
             مدیریت و پایش یکپارچه پروژه‌های فعال، مخازن متن‌باز، سیستم‌های هوش مصنوعی و دستاوردهای فنی همراه با تحلیل خودکار Gemini.
           </p>
 
           <div className="mt-3 flex flex-wrap items-center gap-2">
             <button
               onClick={() => setIsQuickModalOpen(true)}
-              className="ios-press ios-glass-emerald flex h-9 items-center gap-1.5 rounded-full px-3 text-[10.5px] font-bold"
+              className="ios-btn ios-btn-primary h-11 flex-1 text-[13px]"
             >
-              <ClipboardPaste className="h-3.5 w-3.5" /><span>ثبت سریع پیام یا لینک (Quick Paste)</span>
+              <ClipboardPaste className="h-4 w-4" strokeWidth={1.75} /><span>ثبت سریع پیام یا لینک</span>
             </button>
             <button
               onClick={() => setIsAddModalOpen(true)}
-              className="ios-press ios-glass-pill flex h-9 items-center gap-1.5 px-3 text-[10.5px] font-bold text-slate-800 dark:text-white"
+              className="ios-btn ios-btn-secondary h-11 px-4 text-[13px]"
             >
-              <Plus className="h-3.5 w-3.5 stroke-[2.5]" />
+              <Plus className="h-4 w-4" strokeWidth={1.75} />
               <span>افزودن دستی</span>
             </button>
           </div>
 
-          <div className="mt-4 grid grid-cols-2 gap-2 border-t border-white/10 pt-3">
-            <div className="ios-glass-subtile p-2.5 text-center">
-              <span className="metric-number block text-lg font-extrabold leading-none text-slate-900 dark:text-white">
+          <div className="mt-4 grid grid-cols-2 gap-2 border-t-0.5px border-[var(--separator)] pt-3">
+            <div className="text-center">
+              <span className="tabular block text-[20px] font-bold leading-none text-[var(--text-primary)]">
                 {toPersianDigits(totalCount)}
               </span>
-              <p className="mt-1 text-[9.5px] font-medium leading-snug text-slate-500 dark:text-slate-400">کل پروژه‌ها</p>
+              <p className="mt-1 text-[11px] text-[var(--text-secondary)]">کل پروژه‌ها</p>
             </div>
-            <div className="ios-glass-subtile p-2.5 text-center">
-              <span className="metric-number block text-lg font-extrabold leading-none text-emerald-600 dark:text-emerald-300">
+            <div className="text-center">
+              <span className="tabular block text-[20px] font-bold leading-none text-[var(--success)]">
                 {toPersianDigits(prodCount)}
               </span>
-              <p className="mt-1 text-[9.5px] font-medium leading-snug text-slate-500 dark:text-slate-400">آماده بهره‌برداری</p>
+              <p className="mt-1 text-[11px] text-[var(--text-secondary)]">آماده بهره‌برداری</p>
             </div>
-            <div className="ios-glass-subtile p-2.5 text-center">
-              <span className="metric-number block text-lg font-extrabold leading-none text-sky-600 dark:text-sky-300">
+            <div className="text-center">
+              <span className="tabular block text-[20px] font-bold leading-none text-[var(--accent)]">
                 {toPersianDigits(activeCount)}
               </span>
-              <p className="mt-1 text-[9.5px] font-medium leading-snug text-slate-500 dark:text-slate-400">در حال توسعه</p>
+              <p className="mt-1 text-[11px] text-[var(--text-secondary)]">در حال توسعه</p>
             </div>
-            <div className="ios-glass-subtile p-2.5 text-center">
-              <span className="metric-number block text-lg font-extrabold leading-none text-amber-600 dark:text-amber-300">
+            <div className="text-center">
+              <span className="tabular block text-[20px] font-bold leading-none text-[var(--warning)]">
                 {toPersianDigits(openSourceCount)}
               </span>
-              <p className="mt-1 text-[9.5px] font-medium leading-snug text-slate-500 dark:text-slate-400">متن‌باز و ابزارها</p>
+              <p className="mt-1 text-[11px] text-[var(--text-secondary)]">متن‌باز و ابزارها</p>
             </div>
           </div>
         </div>
       </div>
 
-      <div className="ios-glass-card ios-specular overflow-hidden p-4">
-        <div
-          aria-hidden="true"
-          className="pointer-events-none absolute -top-20 -start-16 h-52 w-52 rounded-full"
-          style={{
-            background:
-              'radial-gradient(circle, rgba(14,165,233,0.3), rgba(34,211,238,0.14) 55%, transparent 72%)',
-            filter: 'blur(28px)',
-          }}
-        />
-        <div
-          aria-hidden="true"
-          className="pointer-events-none absolute -bottom-16 -end-12 h-40 w-40 rounded-full opacity-60"
-          style={{
-            background: 'radial-gradient(circle, rgba(34,211,238,0.22), transparent 70%)',
-            filter: 'blur(26px)',
-          }}
-        />
-
+      <div className="ios-card overflow-hidden p-4">
         <div className="relative z-10 space-y-3">
           <div className="flex items-center gap-2.5">
-            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border border-sky-300/30 bg-sky-400/12 text-sky-500 shadow-[inset_0_1px_0_rgba(255,255,255,0.28)] dark:text-sky-300">
-              <Send className="h-5 w-5" />
+            <span
+              className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-[10px]"
+              style={{ background: 'var(--info)', color: 'var(--on-accent)' }}
+            >
+              <Send className="h-[18px] w-[18px] -rotate-12" strokeWidth={1.75} />
             </span>
             <div className="min-w-0">
               <div className="flex flex-wrap items-center gap-2">
                 <h2 className="text-sm font-bold text-slate-900 dark:text-white">
                   ربات تلگرام ثبت و تحلیل پروژه‌ها
                 </h2>
-                <span className="inline-flex items-center gap-1 rounded-full border border-emerald-500/30 bg-emerald-500/20 px-2 py-0.5 text-[9px] font-bold text-emerald-700 dark:text-emerald-300">
-                  <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-400" />
-                  <span>متصل (Active)</span>
+                <span className="ios-chip h-[22px] min-h-[22px] px-2 text-[10px]" data-tone="success">
+                  <span className="h-1.5 w-1.5 rounded-full bg-[var(--success)]" />
+                  <span>متصل</span>
                 </span>
               </div>
             </div>
           </div>
 
-          <div className="ios-glass-subtile px-3 py-2 text-[10px] leading-relaxed text-slate-600 dark:text-sky-200/80">
+          <div className="ios-card px-3 py-2 text-[12px] leading-[1.7] text-[var(--text-secondary)]">
             ربات:{' '}
             <a
               href="https://t.me/knowledgehubpwabot"
               target="_blank"
               rel="noreferrer"
-              className="font-mono font-semibold text-sky-600 underline hover:text-sky-500 dark:text-sky-300 dark:hover:text-white"
+              className="font-semibold text-[var(--accent)]"
             >
               @knowledgehubpwabot
             </a>
-            <span className="mx-1 text-slate-400">·</span>
+            <span className="mx-1">·</span>
             شناسه مجاز تلگرام شما:{' '}
-            <span className="rounded-md bg-white/10 px-1.5 py-0.5 font-mono font-semibold text-slate-800 dark:text-white">
-              92127061
-            </span>
+            <span className="font-semibold text-[var(--text-primary)]">••••••</span>
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
@@ -443,23 +407,23 @@ export const ProjectsView: React.FC = () => {
             <button
               onClick={handleSimulateTelegram}
               disabled={isSimulatingTelegram}
-              className="ios-press ios-glass-pill flex h-9 items-center gap-1.5 px-3 text-[10.5px] font-semibold text-slate-700 transition-all disabled:opacity-50 dark:text-slate-200"
+              className="ios-btn ios-btn-secondary h-11 px-4 text-[13px]"
               title="تست استخراج ایده با هوش مصنوعی"
             >
-              <Sparkles className="h-3.5 w-3.5 text-amber-500 dark:text-amber-300" />
+              <Sparkles className="h-4 w-4" strokeWidth={1.75} />
               <span>تست ارسال ایده</span>
             </button>
           </div>
 
-          <div className="ios-glass-subtile flex items-start gap-2 p-3 text-[10.5px] leading-relaxed text-slate-600 dark:text-slate-300">
-            <Bot className="mt-0.5 h-4 w-4 shrink-0 text-sky-500 dark:text-sky-400" />
+          <div className="ios-card flex items-start gap-2 p-3 text-[12px] leading-[1.7] text-[var(--text-secondary)]">
+            <Bot className="mt-0.5 h-4 w-4 shrink-0 text-[var(--accent)]" strokeWidth={1.75} />
             <span>
               <b>نحوه ثبت خودکار:</b> هر پیام، طرح یا لینک مخزن گیت‌هاب که در تلگرام به آیدی{' '}
               <a
                 href="https://t.me/knowledgehubpwabot"
                 target="_blank"
                 rel="noreferrer"
-                className="font-mono text-sky-600 underline dark:text-sky-400"
+                className="font-semibold text-[var(--accent)]"
               >
                 @knowledgehubpwabot
               </a>{' '}
@@ -489,7 +453,7 @@ export const ProjectsView: React.FC = () => {
           )}
         </div>
 
-        <div className="no-scrollbar -mx-4 flex items-center gap-2 overflow-x-auto px-4 pb-1">
+        <div className="no-scrollbar snap-x flex items-center gap-2 overflow-x-auto pb-1">
           {[
             { id: 'all', label: 'همه حوزه‌ها' },
             { id: 'ai', label: 'هوش مصنوعی' },
@@ -500,19 +464,17 @@ export const ProjectsView: React.FC = () => {
             <button
               key={cat.id}
               onClick={() => setActiveCategory(cat.id)}
-              className={`ios-press shrink-0 px-3 py-2 text-[11px] font-semibold transition-all duration-150 ${
-                activeCategory === cat.id
-                  ? 'ios-glass-pill-active'
-                  : 'ios-glass-pill text-slate-600 dark:text-slate-300'
-              }`}
+              aria-pressed={activeCategory === cat.id}
+              className="ios-chip shrink-0"
+              data-active={activeCategory === cat.id}
             >
               {cat.label}
             </button>
           ))}
         </div>
 
-        <div className="no-scrollbar -mx-4 flex items-center gap-2 overflow-x-auto px-4 pb-1">
-          <Filter className="ms-1 h-3.5 w-3.5 shrink-0 text-slate-400" />
+        <div className="no-scrollbar snap-x flex items-center gap-2 overflow-x-auto pb-1">
+          <Filter className="ms-1 h-3.5 w-3.5 shrink-0 text-[var(--text-tertiary)]" strokeWidth={1.75} />
           {[
             { id: 'all', label: 'همه وضعیت‌ها' },
             { id: 'production', label: 'آماده بهره‌برداری' },
@@ -523,11 +485,9 @@ export const ProjectsView: React.FC = () => {
             <button
               key={st.id}
               onClick={() => setActiveStatus(st.id)}
-              className={`ios-press shrink-0 px-2.5 py-1.5 text-[10px] font-semibold transition-all ${
-                activeStatus === st.id
-                  ? 'ios-glass-pill-active'
-                  : 'ios-glass-pill text-slate-600 dark:text-slate-300'
-              }`}
+              aria-pressed={activeStatus === st.id}
+              className="ios-chip h-[28px] min-h-[28px] shrink-0 text-[11px]"
+              data-active={activeStatus === st.id}
             >
               {st.label}
             </button>
@@ -536,14 +496,14 @@ export const ProjectsView: React.FC = () => {
       </div>
 
       {filteredProjects.length === 0 ? (
-        <div className="ios-glass-card ios-specular px-6 py-9 text-center">
-          <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-2xl border border-indigo-300/25 bg-indigo-400/10 text-indigo-500 dark:text-indigo-300">
-            <FolderKanban className="h-6 w-6" />
+        <div className="ios-card px-6 py-9 text-center">
+          <div className="mx-auto mb-3 flex h-16 w-16 items-center justify-center rounded-[20px] bg-[var(--fill-quaternary)] text-[var(--text-tertiary)]">
+            <FolderKanban className="h-7 w-7" strokeWidth={1.5} />
           </div>
-          <h3 className="text-sm font-bold text-slate-900 dark:text-white">
+          <h3 className="text-[17px] font-semibold text-[var(--text-primary)]">
             پروژه‌ای با این فیلتر پیدا نشد
           </h3>
-          <p className="mx-auto mt-1 max-w-xs text-[11px] leading-relaxed text-slate-500 dark:text-slate-400">
+          <p className="mx-auto mt-1.5 max-w-xs text-[13px] leading-[1.7] text-[var(--text-secondary)]">
             می‌توانید فیلترها را ریست کنید یا با دکمه بالا اولین پروژه خود را به این بخش اضافه نمایید.
           </p>
         </div>
@@ -559,7 +519,7 @@ export const ProjectsView: React.FC = () => {
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, scale: 0.95 }}
                 onClick={() => setSelectedProject(project)}
-                className="ios-glass-card ios-press group relative flex cursor-pointer flex-col justify-between overflow-hidden p-4"
+                className="ios-card ios-press group relative flex cursor-pointer flex-col justify-between overflow-hidden p-4"
               >
                 <div>
                   <div className="mb-3 flex items-start justify-between gap-2">
@@ -619,24 +579,24 @@ export const ProjectsView: React.FC = () => {
                     </div>
                   </div>
 
-                  <div className="ios-glass-subtile mt-3 flex items-start gap-2 p-2.5 text-[10.5px] leading-relaxed text-indigo-950 dark:text-indigo-200">
-                    <Sparkles className="mt-0.5 h-3.5 w-3.5 shrink-0 text-indigo-500 dark:text-indigo-300" />
-                    <span className="leading-relaxed">{project.ai_summary}</span>
+                  <div
+                    className="mt-3 flex items-start gap-2 rounded-[var(--r-control)] p-2.5 text-[12px] leading-[1.7]"
+                    style={{ background: 'var(--accent-soft)', color: 'var(--text-primary)' }}
+                  >
+                    <Sparkles className="mt-0.5 h-3.5 w-3.5 shrink-0 text-[var(--accent)]" strokeWidth={1.75} />
+                    <span>{project.ai_summary}</span>
                   </div>
 
                   <div className="mt-3 flex flex-wrap gap-1.5">
                     {project.tech_stack.map((tech, idx) => (
-                      <span
-                        key={idx}
-                        className="rounded-full border border-white/10 bg-white/[0.055] px-2 py-0.5 font-mono text-[9.5px] font-medium text-slate-600 backdrop-blur-md dark:text-slate-300"
-                      >
-                        {tech}
+                      <span key={idx} className="ios-chip h-[24px] min-h-[24px] px-2 text-[10px]">
+                        <bdi dir="ltr">{tech}</bdi>
                       </span>
                     ))}
                   </div>
                 </div>
 
-                <div className="mt-4 flex items-center justify-between border-t border-white/[0.08] pt-3">
+                <div className="mt-4 flex items-center justify-between border-t-0.5px border-[var(--separator)] pt-3">
                   <div className="flex items-center gap-1.5">
                     {project.github_url && (
                       <a
@@ -644,9 +604,9 @@ export const ProjectsView: React.FC = () => {
                         target="_blank"
                         rel="noreferrer"
                         onClick={(e) => e.stopPropagation()}
-                        className="ios-press inline-flex items-center gap-1 rounded-full border border-white/10 bg-white/[0.055] px-2.5 py-1 text-[10px] font-medium text-slate-600 backdrop-blur-md transition-colors dark:text-slate-300"
+                        className="ios-chip h-[26px] min-h-[26px] px-2.5 text-[11px]"
                       >
-                        <Github className="h-3.5 w-3.5" />
+                        <Github className="h-3.5 w-3.5" strokeWidth={1.75} />
                         <span>گیت‌هاب</span>
                       </a>
                     )}
@@ -656,9 +616,9 @@ export const ProjectsView: React.FC = () => {
                         target="_blank"
                         rel="noreferrer"
                         onClick={(e) => e.stopPropagation()}
-                        className="ios-press inline-flex items-center gap-1 rounded-full border border-indigo-300/30 bg-indigo-400/10 px-2.5 py-1 text-[10px] font-medium text-indigo-600 backdrop-blur-md transition-colors dark:text-indigo-300"
+                        className="ios-chip h-[26px] min-h-[26px] px-2.5 text-[11px]"
                       >
-                        <ExternalLink className="h-3.5 w-3.5" />
+                        <ExternalLink className="h-3.5 w-3.5" strokeWidth={1.75} />
                         <span>مشاهده زنده</span>
                       </a>
                     )}
@@ -678,16 +638,16 @@ export const ProjectsView: React.FC = () => {
         {selectedProject && (
           <div className="fixed inset-0 z-[60] flex items-end justify-center">
             <div
-              className="absolute inset-0 bg-slate-950/55 backdrop-blur-md"
+              className="absolute inset-0 bg-black/45"
               onClick={() => setSelectedProject(null)}
             />
             <motion.div
               initial={{ opacity: 0, y: 40 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: 40 }}
-              className="ios-glass-sheet relative max-h-[90dvh] w-full max-w-[430px] overflow-y-auto rounded-t-[38px] p-5 pb-safe"
+              className="ios-sheet relative max-h-[90dvh] w-full max-w-[430px] overflow-y-auto rounded-t-[24px] p-4 pb-safe"
             >
-              <div className="ios-grabber" />
+              <div className="ios-sheet-handle" />
 
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0 space-y-1">
@@ -710,13 +670,13 @@ export const ProjectsView: React.FC = () => {
 
                 <button
                   onClick={() => setSelectedProject(null)}
-                  className="ios-press flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-white/10 bg-white/[0.055] text-slate-500 backdrop-blur-md transition-colors hover:text-slate-800 dark:hover:text-white"
+                  className="ios-icon-button h-9 w-9 shrink-0"
                 >
-                  <X className="h-4 w-4" />
+                  <X className="h-4 w-4" strokeWidth={1.75} />
                 </button>
               </div>
 
-              <div className="ios-glass-subtile mt-4 grid grid-cols-2 gap-3 p-3.5">
+              <div className="ios-card mt-4 grid grid-cols-2 gap-3 p-3.5">
                 <div>
                   <span className="text-[10px] text-slate-500 dark:text-slate-400">پیشرفت کل</span>
                   <div className="metric-number mt-0.5 font-mono text-base font-bold text-indigo-600 dark:text-indigo-300">
@@ -735,17 +695,20 @@ export const ProjectsView: React.FC = () => {
                 <h4 className="mb-1.5 text-[11px] font-bold text-slate-700 dark:text-slate-300">
                   شرح کامل و معماری پروژه
                 </h4>
-                <p className="ios-reader rounded-[20px] p-3.5 text-[11px] leading-relaxed text-slate-600 dark:text-slate-300">
+                <p className="ios-readable rounded-[var(--r-card)] bg-[var(--fill-quaternary)] p-3.5 text-[13px]">
                   {selectedProject.full_desc}
                 </p>
               </div>
 
-              <div className="mt-4 space-y-1 rounded-[20px] border border-indigo-400/20 bg-gradient-to-br from-indigo-500/10 to-violet-500/10 p-3.5 backdrop-blur-xl">
-                <div className="flex items-center gap-1.5 text-[11px] font-bold text-indigo-600 dark:text-indigo-300">
-                  <Sparkles className="h-3.5 w-3.5" />
+              <div
+                className="mt-4 space-y-1 rounded-[var(--r-card)] p-3.5"
+                style={{ background: 'var(--accent-soft)', border: '0.5px solid var(--accent-separator)' }}
+              >
+                <div className="flex items-center gap-1.5 text-[12px] font-semibold text-[var(--accent)]">
+                  <Sparkles className="h-3.5 w-3.5" strokeWidth={1.75} />
                   <span>تحلیل هوش مصنوعی Gemini</span>
                 </div>
-                <p className="text-[11px] leading-relaxed text-slate-700 dark:text-slate-200">
+                <p className="text-[13px] leading-[1.7] text-[var(--text-primary)]">
                   {selectedProject.ai_summary}
                 </p>
               </div>
@@ -773,9 +736,9 @@ export const ProjectsView: React.FC = () => {
                       href={selectedProject.github_url}
                       target="_blank"
                       rel="noreferrer"
-                      className="ios-press ios-glass-pill inline-flex items-center gap-1.5 px-3 py-2 text-[10.5px] font-bold text-slate-700 dark:text-slate-200"
+                      className="ios-btn ios-btn-secondary h-11 px-4 text-[13px]"
                     >
-                      <Github className="h-4 w-4" />
+                      <Github className="h-4 w-4" strokeWidth={1.75} />
                       <span>مخزن گیت‌هاب</span>
                     </a>
                   )}
@@ -784,9 +747,9 @@ export const ProjectsView: React.FC = () => {
                       href={selectedProject.live_url}
                       target="_blank"
                       rel="noreferrer"
-                      className="ios-press ios-glass-pill inline-flex items-center gap-1.5 px-3 py-2 text-[10.5px] font-bold text-indigo-600 dark:text-indigo-300"
+                      className="ios-btn ios-btn-secondary h-11 px-4 text-[13px]"
                     >
-                      <ExternalLink className="h-4 w-4" />
+                      <ExternalLink className="h-4 w-4" strokeWidth={1.75} />
                       <span>مشاهده زنده</span>
                     </a>
                   )}
@@ -794,7 +757,7 @@ export const ProjectsView: React.FC = () => {
 
                 <button
                   onClick={() => setSelectedProject(null)}
-                  className="ios-press ios-glass-pill px-4 py-2 text-[10.5px] font-semibold text-slate-700 dark:text-slate-300"
+                  className="ios-btn ios-btn-secondary h-10 min-h-10 px-4 text-[13px]"
                 >
                   بستن
                 </button>
@@ -815,9 +778,9 @@ export const ProjectsView: React.FC = () => {
               initial={{ opacity: 0, y: 40 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: 40 }}
-              className="ios-glass-sheet relative max-h-[90dvh] w-full max-w-[430px] overflow-y-auto rounded-t-[38px] p-5 pb-safe"
+              className="ios-sheet relative max-h-[90dvh] w-full max-w-[430px] overflow-y-auto rounded-t-[24px] p-4 pb-safe"
             >
-              <div className="ios-grabber" />
+              <div className="ios-sheet-handle" />
 
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
@@ -945,13 +908,13 @@ export const ProjectsView: React.FC = () => {
                   <button
                     type="button"
                     onClick={() => setIsAddModalOpen(false)}
-                    className="ios-press ios-glass-pill px-4 py-2.5 text-[11px] font-semibold text-slate-700 dark:text-slate-300"
+                    className="ios-btn ios-btn-secondary h-11 px-4 text-[13px]"
                   >
                     انصراف
                   </button>
                   <button
                     type="submit"
-                    className="ios-press ios-glass-emerald rounded-full px-5 py-2.5 text-[11px] font-bold"
+                    className="ios-btn ios-btn-primary h-11 px-5 text-[13px]"
                   >
                     ذخیره و ثبت پروژه
                   </button>
@@ -970,9 +933,9 @@ export const ProjectsView: React.FC = () => {
               initial={{ opacity: 0, y: 40 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: 40 }}
-              className="ios-glass-sheet relative max-h-[90dvh] w-full max-w-[430px] overflow-y-auto rounded-t-[38px] p-5 pb-safe"
+              className="ios-sheet relative max-h-[90dvh] w-full max-w-[430px] overflow-y-auto rounded-t-[24px] p-4 pb-safe"
             >
-              <div className="ios-grabber" />
+              <div className="ios-sheet-handle" />
 
               <div className="flex items-center justify-between border-b border-white/[0.08] pb-3">
                 <div className="flex items-center gap-2">
@@ -1014,14 +977,14 @@ export const ProjectsView: React.FC = () => {
                   <button
                     type="button"
                     onClick={() => setIsQuickModalOpen(false)}
-                    className="ios-press ios-glass-pill px-4 py-2.5 text-[11px] font-semibold text-slate-700 dark:text-slate-300"
+                    className="ios-btn ios-btn-secondary h-11 px-4 text-[13px]"
                   >
                     انصراف
                   </button>
                   <button
                     type="submit"
                     disabled={isQuickAdding || !quickPasteText.trim()}
-                    className="ios-press ios-glass-emerald flex items-center gap-2 rounded-full px-5 py-2.5 text-[11px] font-bold disabled:opacity-50"
+                    className="ios-btn ios-btn-primary flex items-center gap-2 px-5 text-[13px] disabled:opacity-50"
                   >
                     <Sparkles className={`h-4 w-4 ${isQuickAdding ? 'animate-spin' : ''}`} />
                     <span>{isQuickAdding ? 'در حال تحلیل با هوش مصنوعی...' : 'تحلیل و ذخیره در گنجینه'}</span>

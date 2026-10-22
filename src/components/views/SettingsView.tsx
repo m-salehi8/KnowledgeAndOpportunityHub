@@ -1,37 +1,75 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   User,
-  Sliders,
   Rss,
   Server,
   Plus,
   Trash2,
   Save,
-  ToggleLeft,
-  ToggleRight,
   Send,
-  Bot,
-  ExternalLink,
-  RefreshCw,
   Sparkles,
   CheckCircle2,
-  MessageSquare,
+  ExternalLink,
+  RefreshCw,
+  Clock,
+  Bell,
+  Palette,
+  ChevronLeft,
+  Minus,
+  CircleAlert,
+  Eye,
+  EyeOff,
+  X,
 } from 'lucide-react';
+import { motion, useReducedMotion } from 'motion/react';
 import { Profile, Source, AppSettings } from '../../types';
 import { useApp } from '../../context/AppContext';
 import { api } from '../../api/client';
 import { PushNotificationBanner } from '../PushNotificationBanner';
-import { formatPercent } from '../../utils/format';
+import { formatPercent, toPersianDigits } from '../../utils/format';
+import { Pressable, SectionHeader, SegmentedControl, Switch } from '../ui';
+import { hapticImpact } from '../../utils/haptics';
+
+type ConnectionState = 'preview' | 'connected' | 'offline' | 'checking';
+
+const LOCAL_SETTINGS_KEY = 'hub_settings_v1';
+
+const readLocalConnection = (): { api_url: string; app_token: string } => {
+  try {
+    const raw = localStorage.getItem(LOCAL_SETTINGS_KEY);
+    if (!raw) return { api_url: '', app_token: '' };
+    const parsed = JSON.parse(raw) as Partial<AppSettings>;
+    return {
+      api_url: parsed.api_url?.trim() || '',
+      app_token: parsed.app_token?.trim() || '',
+    };
+  } catch {
+    return { api_url: '', app_token: '' };
+  }
+};
+
+const SettingsGroup: React.FC<{
+  title: string;
+  footer?: string;
+  children: React.ReactNode;
+}> = ({ title, footer, children }) => (
+  <section className="mb-6">
+    <SectionHeader title={title} />
+    <div className="ios-list overflow-hidden">{children}</div>
+    {footer && (
+      <p className="mt-2 px-2 text-[11px] leading-[1.7] text-[var(--text-secondary)]">{footer}</p>
+    )}
+  </section>
+);
 
 export const SettingsView: React.FC = () => {
-  const { lang, t, showToast } = useApp();
+  const { lang, t, showToast, theme, setTheme } = useApp();
 
   const [profile, setProfile] = useState<Profile | null>(null);
   const [sources, setSources] = useState<Source[]>([]);
   const [settings, setSettings] = useState<AppSettings | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // Telegram bot integration state
   const [telegramStatus, setTelegramStatus] = useState<{
     bot_username: string;
     owner_chat_id: string;
@@ -40,16 +78,18 @@ export const SettingsView: React.FC = () => {
   const [syncingTelegram, setSyncingTelegram] = useState(false);
   const [simulatingTelegram, setSimulatingTelegram] = useState(false);
 
-  // New skill input state
   const [newSkill, setNewSkill] = useState('');
   const [newKeywordInclude, setNewKeywordInclude] = useState('');
   const [newKeywordExclude, setNewKeywordExclude] = useState('');
 
-  // New source modal state
   const [isAddingSource, setIsAddingSource] = useState(false);
   const [newSourceName, setNewSourceName] = useState('');
   const [newSourceUrl, setNewSourceUrl] = useState('');
   const [newSourceKind, setNewSourceKind] = useState<Source['kind']>('rss');
+
+  const [connection, setConnection] = useState<ConnectionState>('preview');
+  const [showToken, setShowToken] = useState(false);
+  const reduce = useReducedMotion();
 
   useEffect(() => {
     const loadData = async () => {
@@ -58,16 +98,15 @@ export const SettingsView: React.FC = () => {
           api.getProfile(),
           api.getSources(),
           api.getSettings(),
-          api.getTelegramStatus().catch(() => ({
-            bot_username: 'knowledgehubpwabot',
-            owner_chat_id: '92127061',
-            connected: true,
-          })),
+          api.getTelegramStatus().catch(() => null),
         ]);
         setProfile(prof);
         setSources(srcs);
-        setSettings(sets);
+        // The backend settings payload does not carry the connection fields,
+        // so keep whatever is stored locally for the API url / token.
+        setSettings({ ...sets, ...readLocalConnection() });
         setTelegramStatus(tg);
+        setConnection(sets.api_url ? 'offline' : 'preview');
       } catch (err) {
         showToast((err as Error).message, 'error');
       } finally {
@@ -93,12 +132,7 @@ export const SettingsView: React.FC = () => {
     setSimulatingTelegram(true);
     try {
       const res = await api.simulateTelegramProject();
-      showToast(
-        lang === 'fa'
-          ? `پروژه «${res.project?.title || 'جدید'}» توسط تلگرام پردازش و ثبت شد`
-          : `Project simulated & extracted successfully`,
-        'success'
-      );
+      showToast(`پروژه «${res.project?.title || 'جدید'}» ثبت شد`, 'success');
     } catch (err) {
       showToast((err as Error).message, 'error');
     } finally {
@@ -121,8 +155,30 @@ export const SettingsView: React.FC = () => {
   const handleSaveSettings = async () => {
     if (!settings) return;
     try {
+      // Persist locally first so the client switches to the remote backend
+      // immediately, even if the backend does not know these fields.
+      try {
+        const raw = localStorage.getItem(LOCAL_SETTINGS_KEY);
+        const stored = raw ? (JSON.parse(raw) as AppSettings) : ({} as AppSettings);
+        localStorage.setItem(
+          LOCAL_SETTINGS_KEY,
+          JSON.stringify({
+            ...stored,
+            notifications_enabled: settings.notifications_enabled,
+            news_digest_time: settings.news_digest_time,
+            job_radar_time: settings.job_radar_time,
+            min_job_score_notify: settings.min_job_score_notify,
+            api_url: settings.api_url,
+            app_token: settings.app_token,
+          })
+        );
+      } catch {
+        // ignore
+      }
+
       const updated = await api.updateSettings(settings);
-      setSettings(updated);
+      setSettings({ ...updated, api_url: settings.api_url, app_token: settings.app_token });
+      setConnection(settings.api_url?.trim() ? 'offline' : 'preview');
       showToast(t.settings_saved, 'success');
     } catch (err) {
       showToast((err as Error).message, 'error');
@@ -140,9 +196,10 @@ export const SettingsView: React.FC = () => {
 
   const handleDeleteSource = async (id: string) => {
     try {
+      hapticImpact();
       await api.deleteSource(id);
       setSources((prev) => prev.filter((s) => s.id !== id));
-      showToast(lang === 'fa' ? 'منبع حذف گردید' : 'Source removed', 'info');
+      showToast('منبع حذف گردید', 'info');
     } catch (err) {
       showToast((err as Error).message, 'error');
     }
@@ -163,9 +220,36 @@ export const SettingsView: React.FC = () => {
       setNewSourceName('');
       setNewSourceUrl('');
       setIsAddingSource(false);
-      showToast(lang === 'fa' ? 'منبع جدید افزوده شد' : 'New source added', 'success');
+      showToast('منبع جدید افزوده شد', 'success');
     } catch (err) {
       showToast((err as Error).message, 'error');
+    }
+  };
+
+  const testConnection = async () => {
+    if (!settings) return;
+    if (!settings.api_url.trim()) {
+      setConnection('preview');
+      showToast('آدرسی وارد نشده است — حالت پیش‌نمایش محلی فعال است', 'info');
+      return;
+    }
+    setConnection('checking');
+    const base = settings.api_url.replace(/\/$/, '');
+    try {
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), 6000);
+      const res = await fetch(`${base}/healthz`, { signal: controller.signal });
+      clearTimeout(timer);
+      if (res.ok) {
+        setConnection('connected');
+        showToast('اتصال به سرور برقرار است', 'success');
+      } else {
+        setConnection('offline');
+        showToast('سرور پاسخ معتبر نداد', 'error');
+      }
+    } catch {
+      setConnection('offline');
+      showToast('اتصال به سرور ناموفق بود', 'error');
     }
   };
 
@@ -220,64 +304,84 @@ export const SettingsView: React.FC = () => {
     });
   };
 
+  const adjustScore = (delta: number) => {
+    if (!settings) return;
+    const next = Math.min(95, Math.max(50, settings.min_job_score_notify + delta));
+    setSettings({ ...settings, min_job_score_notify: next });
+  };
+
   if (loading || !profile || !settings) {
     return (
-      <div className="p-8 text-center text-xs text-slate-400">
-        {lang === 'fa' ? 'در حال بارگذاری تنظیمات...' : 'Loading settings...'}
+      <div className="px-4">
+        <div className="space-y-3">
+          {[1, 2, 3].map((n) => (
+            <div key={n} className="ios-skeleton h-[120px] rounded-[var(--r-card)]" />
+          ))}
+        </div>
       </div>
     );
   }
 
+  const connectionLabel: Record<ConnectionState, string> = {
+    preview: 'حالت پیش‌نمایش (داده‌ی محلی)',
+    connected: 'متصل',
+    offline: 'قطع',
+    checking: 'در حال بررسی...',
+  };
+
+  const connectionColor: Record<ConnectionState, string> = {
+    preview: 'var(--text-secondary)',
+    connected: 'var(--success)',
+    offline: 'var(--danger)',
+    checking: 'var(--warning)',
+  };
+
   return (
-    <div className="space-y-4 px-4 pb-4">
-      {/* Push Notification Opt-in Banner */}
+    <div className="px-4 pb-2">
       <PushNotificationBanner />
 
-      {/* Profile & Job Radar Criteria */}
-      <div className="ios-glass-card p-5 space-y-4">
-        <div className="flex items-center gap-2.5">
-          <div className="w-9 h-9 rounded-2xl border border-indigo-400/30 bg-indigo-400/12 text-indigo-600 dark:text-indigo-300 flex items-center justify-center backdrop-blur-md shadow-[inset_0_1px_0_rgba(255,255,255,0.25)]">
-            <User className="w-4 h-4" />
-          </div>
-          <div>
-            <h3 className="text-sm font-bold text-slate-900 dark:text-white">{t.profile_title}</h3>
-            <p className="text-[11px] text-slate-500 dark:text-slate-400">{t.profile_desc}</p>
-          </div>
-        </div>
-
-        <form onSubmit={handleSaveProfile} className="space-y-4 text-xs">
-          <div>
-            <label className="block text-slate-600 dark:text-slate-400 mb-1 font-medium">
-              {lang === 'fa' ? 'نام و عنوان' : 'Full Name & Title'}
+      {/* ---------------------------------------------------------- */}
+      {/* Profile                                                     */}
+      {/* ---------------------------------------------------------- */}
+      <SettingsGroup title="پروفایل و معیارهای رادار" footer={t.profile_desc}>
+        <form onSubmit={handleSaveProfile}>
+          <div className="ios-list-row">
+            <span
+              className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-[9px]"
+              style={{ background: 'var(--accent-soft)', color: 'var(--accent)' }}
+              aria-hidden="true"
+            >
+              <User className="h-4 w-4" strokeWidth={1.75} />
+            </span>
+            <label className="min-w-0 flex-1">
+              <span className="ios-row-title block">نام و عنوان</span>
+              <input
+                type="text"
+                value={profile.full_name}
+                onChange={(e) => setProfile({ ...profile, full_name: e.target.value })}
+                className="mt-0.5 w-full bg-transparent text-[13px] text-[var(--text-secondary)] outline-none"
+              />
             </label>
-            <input
-              type="text"
-              value={profile.full_name}
-              onChange={(e) => setProfile({ ...profile, full_name: e.target.value })}
-              className="ios-field w-full h-10 px-3 rounded-2xl text-xs"
-            />
           </div>
 
-          <div>
-            <label className="block text-slate-600 dark:text-slate-400 mb-1 font-medium">{t.skills_label}</label>
-            <div className="flex flex-wrap gap-1.5 mb-2">
+          <div className="ios-list-row flex-col items-start gap-2">
+            <span className="ios-row-title">{t.skills_label}</span>
+            <div className="flex w-full flex-wrap gap-1.5">
               {profile.skills.map((skill) => (
-                <span
-                  key={skill}
-                  className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full border border-indigo-400/30 bg-indigo-400/12 text-indigo-700 dark:text-indigo-200 text-xs font-medium backdrop-blur-md shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]"
-                >
-                  <span>{skill}</span>
+                <span key={skill} className="ios-chip h-[26px] min-h-[26px] px-2.5 text-[11px]">
+                  <bdi dir="ltr">{skill}</bdi>
                   <button
                     type="button"
                     onClick={() => removeSkill(skill)}
-                    className="hover:text-rose-500"
+                    className="text-[var(--text-tertiary)]"
+                    aria-label={`حذف ${skill}`}
                   >
-                    ×
+                    <X className="h-3 w-3" strokeWidth={1.75} />
                   </button>
                 </span>
               ))}
             </div>
-            <div className="flex gap-1.5">
+            <div className="flex w-full items-center gap-2">
               <input
                 type="text"
                 value={newSkill}
@@ -288,537 +392,520 @@ export const SettingsView: React.FC = () => {
                     addSkill();
                   }
                 }}
-                placeholder={lang === 'fa' ? 'مهارت جدید (مثلاً FastAPI)...' : 'New skill...'}
-                className="ios-field flex-1 h-10 px-3 rounded-2xl text-xs"
+                placeholder="مهارت جدید…"
+                className="ios-field flex-1"
+                aria-label="افزودن مهارت"
               />
-              <button
-                type="button"
+              <Pressable
                 onClick={addSkill}
-                className="ios-action-pill ios-press shrink-0 justify-center px-4"
+                className="ios-icon-button h-11 w-11 shrink-0 bg-[var(--accent-soft)] text-[var(--accent)]"
+                aria-label="افزودن مهارت"
               >
-                <Plus className="w-4 h-4" />
-              </button>
+                <Plus className="h-4 w-4" strokeWidth={1.75} />
+              </Pressable>
             </div>
           </div>
 
-          <div className="grid grid-cols-1 gap-3">
-            <div>
-              <label className="block text-slate-600 dark:text-slate-400 mb-1 font-medium">
-                {t.remote_pref_label}
-              </label>
-              <select
-                value={profile.remote_preference}
-                onChange={(e) =>
-                  setProfile({
-                    ...profile,
-                    remote_preference: e.target.value as Profile['remote_preference'],
-                  })
-                }
-                className="ios-field w-full h-10 px-3 rounded-2xl text-xs"
-              >
-                <option value="remote_only">{t.remote_only}</option>
-                <option value="hybrid">{t.hybrid}</option>
-                <option value="any">{t.any}</option>
-              </select>
+          <div className="ios-list-row">
+            <div className="min-w-0 flex-1">
+              <p className="ios-row-title">{t.remote_pref_label}</p>
+              <p className="ios-row-subtitle">شیوه همکاری موردنظر</p>
             </div>
-
-            <div>
-              <label className="block text-slate-600 dark:text-slate-400 mb-1 font-medium">
-                {t.salary_min_label}
-              </label>
-              <input
-                type="number"
-                value={profile.min_salary_usd}
-                onChange={(e) =>
-                  setProfile({ ...profile, min_salary_usd: Number(e.target.value) })
-                }
-                className="ios-field w-full h-10 px-3 rounded-2xl text-xs font-sans"
-              />
-            </div>
+            <select
+              value={profile.remote_preference}
+              onChange={(e) =>
+                setProfile({
+                  ...profile,
+                  remote_preference: e.target.value as Profile['remote_preference'],
+                })
+              }
+              aria-label={t.remote_pref_label}
+              className="ios-field h-10 w-[130px] shrink-0 text-[13px]"
+            >
+              <option value="remote_only">{t.remote_only}</option>
+              <option value="hybrid">{t.hybrid}</option>
+              <option value="any">{t.any}</option>
+            </select>
           </div>
 
-          <div>
-            <label className="block text-slate-600 dark:text-slate-400 mb-1 font-medium">{t.keywords_include}</label>
-            <div className="flex flex-wrap gap-1.5 mb-2">
-              {profile.keywords_include.map((kw) => (
-                <span
-                  key={kw}
-                  className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full border border-emerald-400/30 bg-emerald-400/12 text-emerald-700 dark:text-emerald-200 text-xs font-medium backdrop-blur-md shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]"
-                >
-                  <span>{kw}</span>
-                  <button
-                    type="button"
-                    onClick={() => removeKeywordInclude(kw)}
-                    className="hover:text-rose-500"
-                  >
-                    ×
-                  </button>
-                </span>
-              ))}
+          <div className="ios-list-row">
+            <div className="min-w-0 flex-1">
+              <p className="ios-row-title">{t.salary_min_label}</p>
+              <p className="ios-row-subtitle">عدد به دلار</p>
             </div>
-            <div className="flex gap-1.5">
-              <input
-                type="text"
-                value={newKeywordInclude}
-                onChange={(e) => setNewKeywordInclude(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') {
-                    e.preventDefault();
-                    addKeywordInclude();
-                  }
-                }}
-                placeholder={lang === 'fa' ? 'کلمه کلیدی مثبت...' : 'Target keyword...'}
-                className="ios-field flex-1 h-10 px-3 rounded-2xl text-xs"
-              />
-              <button
-                type="button"
-                onClick={addKeywordInclude}
-                className="ios-action-pill ios-press shrink-0 justify-center px-4"
-              >
-                <Plus className="w-4 h-4" />
-              </button>
-            </div>
+            <input
+              type="number"
+              value={profile.min_salary_usd}
+              onChange={(e) =>
+                setProfile({ ...profile, min_salary_usd: Number(e.target.value) })
+              }
+              className="ios-field h-10 w-[110px] shrink-0 text-[13px]"
+            />
           </div>
-
-          <div>
-            <label className="block text-slate-600 dark:text-slate-400 mb-1 font-medium">{t.keywords_exclude}</label>
-            <div className="flex flex-wrap gap-1.5 mb-2">
-              {profile.keywords_exclude.map((kw) => (
-                <span
-                  key={kw}
-                  className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full border border-rose-400/30 bg-rose-400/12 text-rose-700 dark:text-rose-200 text-xs font-medium backdrop-blur-md shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]"
-                >
-                  <span>{kw}</span>
-                  <button
-                    type="button"
-                    onClick={() => removeKeywordExclude(kw)}
-                    className="hover:text-rose-500"
-                  >
-                    ×
-                  </button>
-                </span>
-              ))}
-            </div>
-            <div className="flex gap-1.5">
-              <input
-                type="text"
-                value={newKeywordExclude}
-                onChange={(e) => setNewKeywordExclude(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') {
-                    e.preventDefault();
-                    addKeywordExclude();
-                  }
-                }}
-                placeholder={lang === 'fa' ? 'کلمه منفی (عدم تمایل)...' : 'Excluded keyword...'}
-                className="ios-field flex-1 h-10 px-3 rounded-2xl text-xs"
-              />
-              <button
-                type="button"
-                onClick={addKeywordExclude}
-                className="ios-action-pill ios-press shrink-0 justify-center px-4"
-              >
-                <Plus className="w-4 h-4" />
-              </button>
-            </div>
-          </div>
-
-          <button
-            type="submit"
-            className="ios-press w-full h-11 rounded-full bg-gradient-to-r from-indigo-500 to-violet-500 text-white font-bold text-xs flex items-center justify-center gap-2 border border-white/20 shadow-lg shadow-indigo-600/25 backdrop-blur-md transition-all"
-          >
-            <Save className="w-4 h-4" />
-            <span>{t.save_profile}</span>
-          </button>
         </form>
-      </div>
+      </SettingsGroup>
 
-      {/* Sources Manager */}
-      <div className="ios-glass-card p-5 space-y-4">
-        <div className="flex items-center justify-between gap-2">
-          <div className="flex items-center gap-2.5 min-w-0">
-            <div className="w-9 h-9 rounded-2xl border border-purple-400/30 bg-purple-400/12 text-purple-600 dark:text-purple-300 flex items-center justify-center backdrop-blur-md shadow-[inset_0_1px_0_rgba(255,255,255,0.25)]">
-              <Rss className="w-4 h-4" />
-            </div>
-            <div className="min-w-0">
-              <h3 className="text-sm font-bold text-slate-900 dark:text-white">{t.sources_title}</h3>
-              <p className="text-[11px] text-slate-500 dark:text-slate-400">{t.sources_desc}</p>
-            </div>
+      {/* ---------------------------------------------------------- */}
+      {/* Keywords                                                    */}
+      {/* ---------------------------------------------------------- */}
+      <SettingsGroup title="کلمات کلیدی">
+        <div className="ios-list-row flex-col items-start gap-2">
+          <span className="ios-row-title">{t.keywords_include}</span>
+          <div className="flex w-full flex-wrap gap-1.5">
+            {profile.keywords_include.map((kw) => (
+              <span key={kw} className="ios-chip h-[26px] min-h-[26px] px-2.5 text-[11px]" data-tone="success">
+                {kw}
+                <button
+                  type="button"
+                  onClick={() => removeKeywordInclude(kw)}
+                  className="text-[var(--text-tertiary)]"
+                  aria-label={`حذف ${kw}`}
+                >
+                  <X className="h-3 w-3" strokeWidth={1.75} />
+                </button>
+              </span>
+            ))}
           </div>
-
-          <button
-            onClick={() => setIsAddingSource(!isAddingSource)}
-            className="ios-action-pill ios-press shrink-0"
-          >
-            <Plus className="w-3.5 h-3.5" />
-            <span>{t.add_source}</span>
-          </button>
+          <div className="flex w-full items-center gap-2">
+            <input
+              type="text"
+              value={newKeywordInclude}
+              onChange={(e) => setNewKeywordInclude(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault();
+                  addKeywordInclude();
+                }
+              }}
+              placeholder="کلمه کلیدی مثبت…"
+              className="ios-field flex-1"
+              aria-label="افزودن کلمه کلیدی مثبت"
+            />
+            <Pressable
+              onClick={addKeywordInclude}
+              className="ios-icon-button h-11 w-11 shrink-0 bg-[var(--accent-soft)] text-[var(--accent)]"
+              aria-label="افزودن کلمه کلیدی مثبت"
+            >
+              <Plus className="h-4 w-4" strokeWidth={1.75} />
+            </Pressable>
+          </div>
         </div>
 
-        {/* Add Source Form */}
-        {isAddingSource && (
-          <form
-            onSubmit={handleAddSource}
-            className="ios-glass-subtile p-3.5 space-y-3 text-xs"
+        <div className="ios-list-row flex-col items-start gap-2">
+          <span className="ios-row-title">{t.keywords_exclude}</span>
+          <div className="flex w-full flex-wrap gap-1.5">
+            {profile.keywords_exclude.map((kw) => (
+              <span key={kw} className="ios-chip h-[26px] min-h-[26px] px-2.5 text-[11px]" data-tone="danger">
+                {kw}
+                <button
+                  type="button"
+                  onClick={() => removeKeywordExclude(kw)}
+                  className="text-[var(--text-tertiary)]"
+                  aria-label={`حذف ${kw}`}
+                >
+                  <X className="h-3 w-3" strokeWidth={1.75} />
+                </button>
+              </span>
+            ))}
+          </div>
+          <div className="flex w-full items-center gap-2">
+            <input
+              type="text"
+              value={newKeywordExclude}
+              onChange={(e) => setNewKeywordExclude(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault();
+                  addKeywordExclude();
+                }
+              }}
+              placeholder="کلمه منفی…"
+              className="ios-field flex-1"
+              aria-label="افزودن کلمه کلیدی منفی"
+            />
+            <Pressable
+              onClick={addKeywordExclude}
+              className="ios-icon-button h-11 w-11 shrink-0 bg-[var(--accent-soft)] text-[var(--accent)]"
+              aria-label="افزودن کلمه کلیدی منفی"
+            >
+              <Plus className="h-4 w-4" strokeWidth={1.75} />
+            </Pressable>
+          </div>
+        </div>
+
+        <div className="ios-list-row">
+          <Pressable
+            type="submit"
+            onClick={handleSaveProfile}
+            className="ios-btn ios-btn-primary h-11 w-full text-[15px]"
           >
-            <div>
-              <label className="block text-slate-600 dark:text-slate-400 mb-1">{t.source_name}</label>
-              <input
-                type="text"
-                value={newSourceName}
-                onChange={(e) => setNewSourceName(e.target.value)}
-                placeholder="TechCrunch AI"
-                className="ios-field w-full h-10 px-3 rounded-2xl text-xs"
-                required
-              />
-            </div>
-            <div>
-              <label className="block text-slate-600 dark:text-slate-400 mb-1">{t.source_url}</label>
-              <input
-                type="url"
-                value={newSourceUrl}
-                onChange={(e) => setNewSourceUrl(e.target.value)}
-                placeholder="https://example.com/rss"
-                className="ios-field w-full h-10 px-3 rounded-2xl text-xs"
-                required
-              />
-            </div>
-            <div>
-              <label className="block text-slate-600 dark:text-slate-400 mb-1">{t.source_kind}</label>
-              <select
-                value={newSourceKind}
-                onChange={(e) => setNewSourceKind(e.target.value as Source['kind'])}
-                className="ios-field w-full h-10 px-3 rounded-2xl text-xs"
-              >
-                <option value="rss">RSS Feed</option>
-                <option value="job_api">Job Board API</option>
-                <option value="telegram_channel">Telegram Channel</option>
-                <option value="newsletter">Email Newsletter</option>
-              </select>
-            </div>
-            <div className="flex gap-2">
-              <button
-                type="submit"
-                className="ios-press flex-1 h-10 rounded-full bg-indigo-500/90 hover:bg-indigo-500 text-white font-semibold text-xs flex items-center justify-center border border-white/20 shadow-lg shadow-indigo-600/25 backdrop-blur-md"
-              >
-                {lang === 'fa' ? 'افزودن' : 'Add'}
-              </button>
-              <button
-                type="button"
+            <Save className="h-4 w-4" strokeWidth={1.75} />
+            <span>{t.save_profile}</span>
+          </Pressable>
+        </div>
+      </SettingsGroup>
+
+      {/* ---------------------------------------------------------- */}
+      {/* Sources                                                     */}
+      {/* ---------------------------------------------------------- */}
+      <SettingsGroup title="منابع و فیدها" footer={t.sources_desc}>
+        {isAddingSource && (
+          <form onSubmit={handleAddSource} className="ios-list-row flex-col items-stretch gap-2">
+            <input
+              type="text"
+              value={newSourceName}
+              onChange={(e) => setNewSourceName(e.target.value)}
+              placeholder={t.source_name}
+              className="ios-field"
+              required
+            />
+            <input
+              type="url"
+              value={newSourceUrl}
+              onChange={(e) => setNewSourceUrl(e.target.value)}
+              placeholder={t.source_url}
+              className="ios-field"
+              required
+            />
+            <select
+              value={newSourceKind}
+              onChange={(e) => setNewSourceKind(e.target.value as Source['kind'])}
+              className="ios-field"
+              aria-label={t.source_kind}
+            >
+              <option value="rss">RSS Feed</option>
+              <option value="job_api">Job Board API</option>
+              <option value="telegram_channel">Telegram Channel</option>
+              <option value="newsletter">Email Newsletter</option>
+            </select>
+            <div className="flex items-center gap-2">
+              <Pressable type="submit" className="ios-btn ios-btn-primary h-11 flex-1 text-[14px]">
+                افزودن منبع
+              </Pressable>
+              <Pressable
                 onClick={() => setIsAddingSource(false)}
-                className="ios-action-pill ios-press justify-center px-4"
+                className="ios-btn ios-btn-secondary h-11 px-4 text-[14px]"
               >
-                {lang === 'fa' ? 'انصراف' : 'Cancel'}
-              </button>
+                انصراف
+              </Pressable>
             </div>
           </form>
         )}
 
-        {/* Sources List */}
-        <div className="space-y-2">
-          {sources.map((src) => (
-            <div
-              key={src.id}
-              className="ios-glass-subtile p-3 flex items-center justify-between gap-3 text-xs"
+        {sources.map((src) => (
+          <div key={src.id} className="ios-list-row">
+            <span
+              className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-[9px]"
+              style={{ background: 'var(--fill-quaternary)', color: 'var(--text-secondary)' }}
+              aria-hidden="true"
             >
-              <div className="truncate">
-                <div className="flex items-center gap-2">
-                  <span className="font-bold text-slate-900 dark:text-white truncate">{src.name}</span>
-                  <span className="text-[10px] px-2 py-0.5 rounded-full border border-slate-300/60 bg-slate-500/10 dark:border-white/15 dark:bg-white/10 text-slate-700 dark:text-slate-200 font-mono backdrop-blur-md">
-                    {src.kind}
-                  </span>
-                </div>
-                <p className="text-[11px] text-slate-500 dark:text-slate-400 font-mono truncate mt-0.5">
-                  {src.url}
-                </p>
-              </div>
-
-              <div className="flex items-center gap-2 shrink-0">
-                <button
-                  onClick={() => handleToggleSource(src)}
-                  className={`ios-icon-button ios-press ${
-                    src.enabled ? 'text-indigo-600 dark:text-indigo-300' : 'text-slate-400 dark:text-slate-500'
-                  }`}
-                  title={src.enabled ? 'Enabled' : 'Disabled'}
-                >
-                  {src.enabled ? (
-                    <ToggleRight className="w-6 h-6" />
-                  ) : (
-                    <ToggleLeft className="w-6 h-6" />
-                  )}
-                </button>
-                <button
-                  onClick={() => handleDeleteSource(src.id)}
-                  className="ios-icon-button ios-press text-slate-400 hover:text-rose-500"
-                  title="Delete"
-                >
-                  <Trash2 className="w-3.5 h-3.5" />
-                </button>
-              </div>
+              <Rss className="h-4 w-4" strokeWidth={1.75} />
+            </span>
+            <div className="min-w-0 flex-1">
+              <p className="ios-row-title truncate">{src.name}</p>
+              <p className="ios-row-subtitle truncate" dir="ltr">
+                {src.url}
+              </p>
             </div>
-          ))}
+            <Switch
+              checked={src.enabled}
+              onChange={() => handleToggleSource(src)}
+              label={`فعال‌سازی منبع ${src.name}`}
+            />
+            <Pressable
+              onClick={() => handleDeleteSource(src.id)}
+              className="ios-icon-button h-9 w-9 shrink-0 text-[var(--danger)]"
+              aria-label={`حذف منبع ${src.name}`}
+            >
+              <Trash2 className="h-4 w-4" strokeWidth={1.75} />
+            </Pressable>
+          </div>
+        ))}
+
+        <div className="ios-list-row">
+          <Pressable
+            onClick={() => setIsAddingSource((v) => !v)}
+            className="ios-btn ios-btn-secondary h-11 w-full text-[15px]"
+          >
+            <Plus className="h-4 w-4" strokeWidth={1.75} />
+            <span>{t.add_source}</span>
+          </Pressable>
         </div>
-      </div>
+      </SettingsGroup>
 
-      {/* Scheduler & Push Alert Thresholds */}
-      <div className="ios-glass-card p-5 space-y-4">
-        <div className="flex items-center gap-2.5">
-          <div className="w-9 h-9 rounded-2xl border border-amber-400/30 bg-amber-400/12 text-amber-600 dark:text-amber-300 flex items-center justify-center backdrop-blur-md shadow-[inset_0_1px_0_rgba(255,255,255,0.25)]">
-            <Sliders className="w-4 h-4" />
+      {/* ---------------------------------------------------------- */}
+      {/* Schedule                                                    */}
+      {/* ---------------------------------------------------------- */}
+      <SettingsGroup
+        title="زمان‌بندی و حساسیت اعلان‌ها"
+        footer="زمان اجرای روزانه خلاصه اخبار و رادار فرصت‌های شغلی، و حداقل امتیاز لازم برای ارسال اعلان."
+      >
+        <div className="ios-list-row">
+          <span
+            className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-[9px]"
+            style={{ background: 'var(--warning-soft)', color: 'var(--warning)' }}
+            aria-hidden="true"
+          >
+            <Clock className="h-4 w-4" strokeWidth={1.75} />
+          </span>
+          <div className="min-w-0 flex-1">
+            <p className="ios-row-title">ساعت خلاصه اخبار</p>
           </div>
-          <div>
-            <h3 className="text-sm font-bold text-slate-900 dark:text-white">
-              {lang === 'fa' ? 'زمان‌بندی و حساسیت اعلان‌ها' : 'Schedule & Notification Thresholds'}
-            </h3>
-            <p className="text-[11px] text-slate-500 dark:text-slate-400">
-              {lang === 'fa'
-                ? 'تنظیم ساعت اجرای روزانه خلاصه اخبار و رادار فرصت‌های شغلی'
-                : 'Configure execution times and minimum score for alerts'}
-            </p>
+          <input
+            type="time"
+            value={settings.news_digest_time}
+            onChange={(e) => setSettings({ ...settings, news_digest_time: e.target.value })}
+            className="ios-field h-10 w-[112px] shrink-0 text-[13px]"
+            aria-label="ساعت خلاصه اخبار"
+          />
+        </div>
+
+        <div className="ios-list-row">
+          <span
+            className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-[9px]"
+            style={{ background: 'var(--success-soft)', color: 'var(--success)' }}
+            aria-hidden="true"
+          >
+            <Bell className="h-4 w-4" strokeWidth={1.75} />
+          </span>
+          <div className="min-w-0 flex-1">
+            <p className="ios-row-title">ساعت رادار شغل</p>
+          </div>
+          <input
+            type="time"
+            value={settings.job_radar_time}
+            onChange={(e) => setSettings({ ...settings, job_radar_time: e.target.value })}
+            className="ios-field h-10 w-[112px] shrink-0 text-[13px]"
+            aria-label="ساعت رادار شغل"
+          />
+        </div>
+
+        <div className="ios-list-row">
+          <div className="min-w-0 flex-1">
+            <p className="ios-row-title">حداقل امتیاز برای اعلان</p>
+            <p className="ios-row-subtitle">آگهی‌های زیر این حد ارسال نمی‌شوند</p>
+          </div>
+          <div className="flex shrink-0 items-center gap-2">
+            <Pressable
+              onClick={() => adjustScore(-5)}
+              className="ios-icon-button h-9 w-9"
+              aria-label="کاهش حداقل امتیاز"
+            >
+              <Minus className="h-4 w-4" strokeWidth={1.75} />
+            </Pressable>
+            <span className="min-w-[46px] text-center text-[15px] font-semibold text-[var(--text-primary)] tabular">
+              {formatPercent(settings.min_job_score_notify)}
+            </span>
+            <Pressable
+              onClick={() => adjustScore(5)}
+              className="ios-icon-button h-9 w-9"
+              aria-label="افزایش حداقل امتیاز"
+            >
+              <Plus className="h-4 w-4" strokeWidth={1.75} />
+            </Pressable>
           </div>
         </div>
 
-        <div className="space-y-3 text-xs">
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="block text-slate-600 dark:text-slate-400 mb-1">
-                {lang === 'fa' ? 'ساعت خلاصه اخبار' : 'News Digest Time'}
-              </label>
-              <input
-                type="time"
-                value={settings.news_digest_time}
-                onChange={(e) =>
-                  setSettings({ ...settings, news_digest_time: e.target.value })
-                }
-                className="ios-field w-full h-10 px-3 rounded-2xl text-xs font-mono"
-              />
-            </div>
-            <div>
-              <label className="block text-slate-600 dark:text-slate-400 mb-1">
-                {lang === 'fa' ? 'ساعت رادار شغل' : 'Job Radar Time'}
-              </label>
-              <input
-                type="time"
-                value={settings.job_radar_time}
-                onChange={(e) =>
-                  setSettings({ ...settings, job_radar_time: e.target.value })
-                }
-                className="ios-field w-full h-10 px-3 rounded-2xl text-xs font-mono"
-              />
-            </div>
-          </div>
+        <div className="ios-list-row">
+          <Pressable
+            onClick={handleSaveSettings}
+            className="ios-btn ios-btn-primary h-11 w-full text-[15px]"
+          >
+            <Save className="h-4 w-4" strokeWidth={1.75} />
+            <span>{t.save_settings}</span>
+          </Pressable>
+        </div>
+      </SettingsGroup>
 
-          <div>
-            <div className="flex justify-between text-slate-600 dark:text-slate-400 mb-1 font-medium">
-              <span>{lang === 'fa' ? 'حداقل امتیاز برای ارسال Push Notification' : 'Min Match Score for Push'}</span>
-              <span className="font-sans text-indigo-600 dark:text-white font-bold">{formatPercent(settings.min_job_score_notify)}</span>
-            </div>
-            <input
-              type="range"
-              min="50"
-              max="95"
-              step="5"
-              value={settings.min_job_score_notify}
-              onChange={(e) =>
-                setSettings({ ...settings, min_job_score_notify: Number(e.target.value) })
-              }
-              className="w-full accent-indigo-600"
+      {/* ---------------------------------------------------------- */}
+      {/* Appearance                                                  */}
+      {/* ---------------------------------------------------------- */}
+      <SettingsGroup title="ظاهر" footer="حالت «خودکار» از تنظیمات سیستم پیروی می‌کند.">
+        <div className="ios-list-row">
+          <span
+            className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-[9px]"
+            style={{ background: 'var(--accent-soft)', color: 'var(--accent)' }}
+            aria-hidden="true"
+          >
+            <Palette className="h-4 w-4" strokeWidth={1.75} />
+          </span>
+          <div className="min-w-0 flex-1">
+            <p className="ios-row-title">پوسته</p>
+          </div>
+        </div>
+        <div className="ios-list-row">
+          <div className="w-full">
+            <SegmentedControl
+              items={[
+                { id: 'system', label: 'خودکار' },
+                { id: 'light', label: 'روشن' },
+                { id: 'dark', label: 'تاریک' },
+              ]}
+              value={theme}
+              onChange={(value) => setTheme(value as 'light' | 'dark' | 'system')}
+              ariaLabel="پوسته برنامه"
             />
           </div>
         </div>
-      </div>
+      </SettingsGroup>
 
-      {/* Telegram Bot Automated Project Extraction */}
-      <div className="ios-glass-card ios-specular p-5 space-y-4 relative overflow-hidden">
-        <div className="absolute top-0 right-0 left-0 h-1 bg-gradient-to-r from-sky-400 via-cyan-400 to-indigo-500" />
-        <div
-          aria-hidden="true"
-          className="pointer-events-none absolute inset-0"
-          style={{
-            background:
-              'linear-gradient(155deg, rgba(56,189,248,0.12) 0%, transparent 42%, rgba(34,211,238,0.06) 100%)',
-          }}
-        />
-
-        <div className="flex items-start justify-between gap-3">
-          <div className="flex items-center gap-2.5 min-w-0 flex-1">
-            <div className="w-9 h-9 shrink-0 rounded-2xl border border-sky-400/30 bg-sky-400/12 text-sky-600 dark:text-sky-300 flex items-center justify-center backdrop-blur-md shadow-[inset_0_1px_0_rgba(255,255,255,0.25)]">
-              <Send className="w-4 h-4 -rotate-12" />
-            </div>
-            <div className="min-w-0">
-              <div className="flex flex-wrap items-center gap-2">
-                <h3 className="text-sm font-bold text-slate-900 dark:text-white">
-                  {lang === 'fa' ? 'ربات تلگرام ثبت و تحلیل پروژه (Telegram Bot)' : 'Telegram Project Ingestion Bot'}
-                </h3>
-                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                  {lang === 'fa' ? 'متصل و فعال' : 'Connected'}
-                </span>
-              </div>
-              <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
-                {lang === 'fa'
-                  ? 'ثبت خودکار ایده‌ها، لینک‌های گیت‌هاب و یادداشت‌های فنی با تحلیل هوش مصنوعی Gemini و هدایت به تب «پروژه‌های منتخب»'
-                  : 'Automatic parsing of technical notes & projects via Telegram bot into Featured Projects tab'}
-              </p>
-            </div>
+      {/* ---------------------------------------------------------- */}
+      {/* Telegram bot                                                */}
+      {/* ---------------------------------------------------------- */}
+      <SettingsGroup
+        title="ربات تلگرام"
+        footer="ثبت خودکار ایده‌ها، لینک‌های گیت‌هاب و یادداشت‌های فنی با تحلیل هوش مصنوعی."
+      >
+        <div className="ios-list-row">
+          <span
+            className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-[9px]"
+            style={{ background: 'var(--info)', color: 'var(--on-accent)' }}
+            aria-hidden="true"
+          >
+            <Send className="h-4 w-4 -rotate-12" strokeWidth={1.75} />
+          </span>
+          <div className="min-w-0 flex-1">
+            <p className="ios-row-title truncate">@{(telegramStatus?.bot_username ?? 'hub_bot').replace(/^@/, '')}</p>
+            <p className="ios-row-subtitle">شناسه مالک: {telegramStatus?.owner_chat_id ?? '••••••'}</p>
           </div>
-
           <a
             href="https://t.me/knowledgehubpwabot"
             target="_blank"
             rel="noopener noreferrer"
-            className="ios-action-pill ios-press shrink-0 text-sky-700 dark:text-sky-200"
+            className="ios-icon-button h-9 w-9 shrink-0 text-[var(--accent)]"
+            aria-label="باز کردن ربات تلگرام"
           >
-            <span>{lang === 'fa' ? 'ورود به ربات' : 'Open Bot'}</span>
-            <ExternalLink className="w-3.5 h-3.5" />
+            <ExternalLink className="h-4 w-4" strokeWidth={1.75} />
           </a>
         </div>
 
-        {/* Credentials & status pills */}
-        <div className="grid grid-cols-1 gap-2.5 text-xs">
-          <div className="ios-glass-subtile p-2.5">
-            <span className="block text-[10px] text-slate-400 mb-0.5">
-              {lang === 'fa' ? 'آیدی ربات تلگرام' : 'Bot Username'}
-            </span>
-            <div className="flex items-center justify-between">
-              <span className="font-mono text-sky-600 dark:text-sky-400 font-bold dir-ltr">
-                @{telegramStatus?.bot_username || 'knowledgehubpwabot'}
-              </span>
-              <a
-                href="https://t.me/knowledgehubpwabot"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-slate-400 hover:text-sky-500"
-              >
-                <ExternalLink className="w-3 h-3" />
-              </a>
-            </div>
+        <div className="ios-list-row">
+          <div className="min-w-0 flex-1">
+            <p className="ios-row-title">موتور استخراج</p>
+            <p className="ios-row-subtitle">تحلیل ساختاریافته پیام‌ها</p>
           </div>
-
-          <div className="ios-glass-subtile p-2.5">
-            <span className="block text-[10px] text-slate-400 mb-0.5">
-              {lang === 'fa' ? 'شناسه مجاز مالک (Chat ID)' : 'Authorized Owner ID'}
-            </span>
-            <span className="font-mono text-slate-800 dark:text-slate-200 font-bold dir-ltr">
-              {telegramStatus?.owner_chat_id || '92127061'}
-            </span>
-          </div>
-
-          <div className="ios-glass-subtile p-2.5">
-            <span className="block text-[10px] text-slate-400 mb-0.5">
-              {lang === 'fa' ? 'موتور استخراج هوشمند' : 'Extraction Engine'}
-            </span>
-            <div className="flex items-center gap-1.5 text-purple-600 dark:text-purple-400 font-semibold">
-              <Sparkles className="w-3.5 h-3.5" />
-              <span>Gemini 2.5 Flash</span>
-            </div>
-          </div>
+          <span className="ios-chip h-[24px] min-h-[24px] px-2 text-[10px]" data-tone="accent">
+            <Sparkles className="h-3 w-3" strokeWidth={1.75} />
+            هوش مصنوعی
+          </span>
         </div>
 
-        {/* Instructions */}
-        <div className="ios-glass-subtile p-3 text-[11px] text-slate-700 dark:text-slate-300 space-y-1.5">
-          <div className="font-bold text-sky-800 dark:text-sky-300 flex items-center gap-1.5">
-            <CheckCircle2 className="w-3.5 h-3.5" />
-            <span>{lang === 'fa' ? 'نحوه کارکرد ارسال پروژه از تلگرام:' : 'How Telegram project extraction works:'}</span>
-          </div>
-          <ol className="list-decimal list-inside space-y-1 text-slate-600 dark:text-slate-400 pr-1 leading-relaxed">
-            <li>
-              {lang === 'fa'
-                ? 'در تلگرام وارد ربات @knowledgehubpwabot شده و دکمه Start را بزنید.'
-                : 'Open @knowledgehubpwabot in Telegram and press Start.'}
-            </li>
-            <li>
-              {lang === 'fa'
-                ? 'ایده، یادداشت معماری، استک تکنولوژی، یا لینک گیت‌هاب پروژه موردنظرتان را ارسال کنید.'
-                : 'Send your project idea, architecture notes, tech stack, or GitHub repo.'}
-            </li>
-            <li>
-              {lang === 'fa'
-                ? 'هوش مصنوعی پیام را خوانده، عنوان، درصد پیشرفت، تکنولوژی‌ها و تحلیل هوشمند را استخراج کرده و به تب «پروژه‌های منتخب» اضافه می‌کند.'
-                : 'Gemini structures the data and inserts it directly into the Featured Projects tab.'}
-            </li>
-          </ol>
-        </div>
-
-        {/* Action buttons */}
-        <div className="grid grid-cols-1 gap-2 pt-1">
-          <button
-            type="button"
+        <div className="ios-list-row gap-2">
+          <Pressable
             onClick={handleSyncTelegram}
             disabled={syncingTelegram}
-            className="ios-press h-10 px-4 rounded-full bg-sky-500/85 hover:bg-sky-500 disabled:opacity-50 text-white text-xs font-semibold flex items-center justify-center gap-2 border border-sky-200/30 backdrop-blur-md transition-all shadow-lg shadow-sky-500/20"
+            className="ios-btn ios-btn-secondary h-11 flex-1 text-[13px] disabled:opacity-50"
           >
-            <RefreshCw className={`w-3.5 h-3.5 ${syncingTelegram ? 'animate-spin' : ''}`} />
-            <span>
-              {syncingTelegram
-                ? (lang === 'fa' ? 'در حال بررسی پیام‌ها...' : 'Checking messages...')
-                : (lang === 'fa' ? 'همگام‌سازی پیام‌های دریافتی تلگرام' : 'Sync Telegram Messages')}
-            </span>
-          </button>
-
-          <button
-            type="button"
+            <RefreshCw
+              className={`h-4 w-4 ${syncingTelegram ? 'animate-spin' : ''}`}
+              strokeWidth={1.75}
+            />
+            <span>{syncingTelegram ? 'در حال بررسی...' : 'همگام‌سازی'}</span>
+          </Pressable>
+          <Pressable
             onClick={handleSimulateTelegram}
             disabled={simulatingTelegram}
-            className="ios-action-pill ios-press w-full justify-center disabled:opacity-50 text-slate-900 dark:text-white"
+            className="ios-btn ios-btn-secondary h-11 flex-1 text-[13px] disabled:opacity-50"
           >
-            <Sparkles className={`w-3.5 h-3.5 text-purple-500 ${simulatingTelegram ? 'animate-pulse' : ''}`} />
-            <span>
-              {simulatingTelegram
-                ? (lang === 'fa' ? 'در حال تحلیل با هوش مصنوعی...' : 'Analyzing with AI...')
-                : (lang === 'fa' ? 'تست تحلیل و ثبت یک پروژه نمونه' : 'Test Simulated Project')}
-            </span>
-          </button>
+            <Sparkles
+              className={`h-4 w-4 ${simulatingTelegram ? 'animate-pulse' : ''}`}
+              strokeWidth={1.75}
+            />
+            <span>تست ثبت نمونه</span>
+          </Pressable>
         </div>
-      </div>
+      </SettingsGroup>
 
-      {/* FastAPI Backend Connection Settings */}
-      <div className="ios-glass-card p-5 space-y-4">
-        <div className="flex items-center gap-2.5">
-          <div className="w-9 h-9 rounded-2xl border border-emerald-400/30 bg-emerald-400/12 text-emerald-600 dark:text-emerald-300 flex items-center justify-center backdrop-blur-md shadow-[inset_0_1px_0_rgba(255,255,255,0.25)]">
-            <Server className="w-4 h-4" />
-          </div>
-          <div>
-            <h3 className="text-sm font-bold text-slate-900 dark:text-white">{t.api_config_title}</h3>
-            <p className="text-[11px] text-slate-500 dark:text-slate-400">
-              {lang === 'fa'
-                ? 'در صورت خالی بودن، دیتای پیش‌فرض محلی (Mock Seed) استفاده می‌شود.'
-                : 'Leave empty to run in-memory mock preview with 40+ seeded records.'}
+      {/* ---------------------------------------------------------- */}
+      {/* Backend connection                                          */}
+      {/* ---------------------------------------------------------- */}
+      <SettingsGroup
+        title={t.api_config_title}
+        footer="در صورت خالی بودن آدرس، داده‌ی پیش‌فرض محلی (Mock) استفاده می‌شود."
+      >
+        <div className="ios-list-row">
+          <span
+            className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-[9px]"
+            style={{ background: 'var(--success-soft)', color: 'var(--success)' }}
+            aria-hidden="true"
+          >
+            <Server className="h-4 w-4" strokeWidth={1.75} />
+          </span>
+          <div className="min-w-0 flex-1">
+            <p className="ios-row-title">وضعیت اتصال</p>
+            <p className="ios-row-subtitle" style={{ color: connectionColor[connection] }}>
+              {connectionLabel[connection]}
             </p>
           </div>
+          {connection === 'connected' ? (
+            <CheckCircle2 className="h-5 w-5 shrink-0 text-[var(--success)]" strokeWidth={1.75} />
+          ) : connection === 'offline' ? (
+            <CircleAlert className="h-5 w-5 shrink-0 text-[var(--danger)]" strokeWidth={1.75} />
+          ) : (
+            <ChevronLeft className="h-5 w-5 shrink-0 text-[var(--text-quaternary)]" strokeWidth={1.75} />
+          )}
         </div>
 
-        <div className="space-y-3 text-xs">
-          <div>
-            <label className="block text-slate-600 dark:text-slate-400 mb-1">{t.api_url_label}</label>
-            <input
-              type="text"
-              value={settings.api_url}
-              onChange={(e) => setSettings({ ...settings, api_url: e.target.value })}
-              placeholder="http://localhost:8000 or https://your-domain.com"
-              className="ios-field w-full h-10 px-3 rounded-2xl text-xs font-mono"
-            />
+        <div className="ios-list-row">
+          <div className="min-w-0 flex-1">
+            <p className="ios-row-title">{t.api_url_label}</p>
           </div>
+          <input
+            type="text"
+            value={settings.api_url}
+            onChange={(e) => setSettings({ ...settings, api_url: e.target.value })}
+            placeholder="https://your-domain.com"
+            className="ios-field h-10 w-[170px] shrink-0 text-[13px]"
+            dir="ltr"
+          />
+        </div>
 
-          <div>
-            <label className="block text-slate-600 dark:text-slate-400 mb-1">{t.api_token_label}</label>
-            <input
-              type="password"
-              value={settings.app_token}
-              onChange={(e) => setSettings({ ...settings, app_token: e.target.value })}
-              className="ios-field w-full h-10 px-3 rounded-2xl text-xs font-mono"
-            />
+        <div className="ios-list-row">
+          <div className="min-w-0 flex-1">
+            <p className="ios-row-title">{t.api_token_label}</p>
           </div>
-
-          <button
-            onClick={handleSaveSettings}
-            className="ios-press w-full h-10 rounded-full bg-emerald-400/15 hover:bg-emerald-400/25 text-emerald-700 dark:text-emerald-200 font-semibold text-xs flex items-center justify-center gap-2 border border-emerald-300/30 backdrop-blur-md transition-all"
+          <input
+            type={showToken ? 'text' : 'password'}
+            value={settings.app_token}
+            onChange={(e) => setSettings({ ...settings, app_token: e.target.value })}
+            placeholder="—"
+            className="ios-field h-10 w-[140px] shrink-0 text-[13px]"
+            dir="ltr"
+          />
+          <Pressable
+            onClick={() => setShowToken((v) => !v)}
+            className="ios-icon-button h-9 w-9 shrink-0"
+            aria-label={showToken ? 'پنهان کردن توکن' : 'نمایش توکن'}
           >
-            <Save className="w-4 h-4" />
-            <span>{t.save_settings}</span>
-          </button>
+            {showToken ? (
+              <EyeOff className="h-4 w-4" strokeWidth={1.75} />
+            ) : (
+              <Eye className="h-4 w-4" strokeWidth={1.75} />
+            )}
+          </Pressable>
         </div>
-      </div>
+
+        <div className="ios-list-row gap-2">
+          <Pressable
+            onClick={testConnection}
+            disabled={connection === 'checking'}
+            className="ios-btn ios-btn-secondary h-11 flex-1 text-[13px] disabled:opacity-50"
+          >
+            <RefreshCw
+              className={`h-4 w-4 ${connection === 'checking' ? 'animate-spin' : ''}`}
+              strokeWidth={1.75}
+            />
+            <span>تست اتصال</span>
+          </Pressable>
+          <Pressable
+            onClick={handleSaveSettings}
+            className="ios-btn ios-btn-primary h-11 flex-1 text-[13px]"
+          >
+            <Save className="h-4 w-4" strokeWidth={1.75} />
+            <span>{t.save_settings}</span>
+          </Pressable>
+        </div>
+      </SettingsGroup>
     </div>
   );
 };

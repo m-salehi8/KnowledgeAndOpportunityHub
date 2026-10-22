@@ -73,6 +73,60 @@ try {
   // ignore
 }
 
+/**
+ * One-time privacy migration for the local mock store: replaces any real
+ * mailbox / chat id that older versions persisted with generic placeholders.
+ */
+const PRIVACY_MIGRATION_FLAG = 'hub_privacy_sanitized_v1';
+
+try {
+  if (!localStorage.getItem(PRIVACY_MIGRATION_FLAG)) {
+    const EMAIL_PATTERN = /[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/g;
+    const sanitize = (value: string) => value.replace(EMAIL_PATTERN, 'user@example.com');
+
+    const rawItems = localStorage.getItem(STORAGE_KEYS.ITEMS);
+    if (rawItems) {
+      const items = JSON.parse(rawItems) as Item[];
+      const sanitized = items.map((item) => ({
+        ...item,
+        summary: sanitize(item.summary ?? ''),
+        content: sanitize(item.content ?? ''),
+        source_url: item.source_url?.startsWith('mailto:')
+          ? 'mailto:user@example.com'
+          : item.source_url,
+        job_meta: item.job_meta
+          ? {
+              ...item.job_meta,
+              email_sent_to: item.job_meta.email_sent_to
+                ? sanitize(item.job_meta.email_sent_to)
+                : undefined,
+            }
+          : item.job_meta,
+      }));
+      localStorage.setItem(STORAGE_KEYS.ITEMS, JSON.stringify(sanitized));
+    }
+
+    const rawProfile = localStorage.getItem(STORAGE_KEYS.PROFILE);
+    if (rawProfile) {
+      const profile = JSON.parse(rawProfile) as Profile;
+      if (profile.email) profile.email = sanitize(profile.email);
+      localStorage.setItem(STORAGE_KEYS.PROFILE, JSON.stringify(profile));
+    }
+
+    const rawSettings = localStorage.getItem(STORAGE_KEYS.SETTINGS);
+    if (rawSettings) {
+      const settings = JSON.parse(rawSettings) as AppSettings;
+      // Pure mock mode never talks to a backend, so no credential is kept.
+      if (!settings.api_url?.trim()) settings.app_token = '';
+      localStorage.setItem(STORAGE_KEYS.SETTINGS, JSON.stringify(settings));
+    }
+
+    localStorage.setItem(PRIVACY_MIGRATION_FLAG, '1');
+  }
+} catch {
+  // ignore
+}
+
 class MockApiClient implements ApiClient {
   private getStored<T>(key: string, fallback: T): T {
     try {
@@ -471,7 +525,7 @@ class MockApiClient implements ApiClient {
           status: 'new',
           source_platform: 'jobinja',
           requirements: ['Python', 'Django', 'DRF', 'PostgreSQL', 'Docker', 'Microservices'],
-          email_sent_to: 'job.msalehi@gmail.com',
+          email_sent_to: 'user@example.com',
         },
       },
       {
@@ -499,7 +553,7 @@ class MockApiClient implements ApiClient {
           status: 'new',
           source_platform: 'jobinja',
           requirements: ['Python', 'FastAPI', 'AI Agents', 'LLM Orchestration', 'PostgreSQL', 'Celery'],
-          email_sent_to: 'job.msalehi@gmail.com',
+          email_sent_to: 'user@example.com',
         },
       },
       {
@@ -527,7 +581,7 @@ class MockApiClient implements ApiClient {
           status: 'new',
           source_platform: 'jobvision',
           requirements: ['Python', 'Web Scraping', 'Django', 'FastAPI', 'PostgreSQL'],
-          email_sent_to: 'job.msalehi@gmail.com',
+          email_sent_to: 'user@example.com',
         },
       },
       {
@@ -555,7 +609,7 @@ class MockApiClient implements ApiClient {
           status: 'new',
           source_platform: 'jobinja',
           requirements: ['Python', 'FastAPI', 'Async Programming', 'DAG Engine', 'PostgreSQL', 'Redis'],
-          email_sent_to: 'job.msalehi@gmail.com',
+          email_sent_to: 'user@example.com',
         },
       },
       {
@@ -583,7 +637,7 @@ class MockApiClient implements ApiClient {
           status: 'new',
           source_platform: 'jobvision',
           requirements: ['Python', 'ETL Pipelines', 'Pandas', 'PostgreSQL', 'Elasticsearch', 'Docker'],
-          email_sent_to: 'job.msalehi@gmail.com',
+          email_sent_to: 'user@example.com',
         },
       },
       {
@@ -611,7 +665,7 @@ class MockApiClient implements ApiClient {
           status: 'new',
           source_platform: 'jobinja',
           requirements: ['Python', 'FastAPI', 'Microservices', 'PostgreSQL'],
-          email_sent_to: 'job.msalehi@gmail.com',
+          email_sent_to: 'user@example.com',
         },
       },
       {
@@ -639,7 +693,7 @@ class MockApiClient implements ApiClient {
           status: 'new',
           source_platform: 'jobvision',
           requirements: ['Python', 'RabbitMQ', 'Microservices', 'Docker', 'Celery', 'RESTful APIs'],
-          email_sent_to: 'job.msalehi@gmail.com',
+          email_sent_to: 'user@example.com',
         },
       },
       {
@@ -667,7 +721,7 @@ class MockApiClient implements ApiClient {
           status: 'new',
           source_platform: 'jobinja',
           requirements: ['Python', 'Scrapy', 'Proxy Rotation', 'Anti-Bot', 'ETL', 'PostgreSQL'],
-          email_sent_to: 'job.msalehi@gmail.com',
+          email_sent_to: 'user@example.com',
         },
       },
       {
@@ -695,7 +749,7 @@ class MockApiClient implements ApiClient {
           status: 'new',
           source_platform: 'jobvision',
           requirements: ['Python', 'Django', 'DRF', 'PostgreSQL', 'Query Optimization', 'Docker'],
-          email_sent_to: 'job.msalehi@gmail.com',
+          email_sent_to: 'user@example.com',
         },
       },
       {
@@ -723,7 +777,7 @@ class MockApiClient implements ApiClient {
           status: 'new',
           source_platform: 'jobinja',
           requirements: ['Python', 'Elasticsearch', 'Redis', 'Microservices', 'FastAPI', 'PostgreSQL'],
-          email_sent_to: 'job.msalehi@gmail.com',
+          email_sent_to: 'user@example.com',
         },
       },
       {
@@ -751,7 +805,7 @@ class MockApiClient implements ApiClient {
           status: 'new',
           source_platform: 'jobvision',
           requirements: ['Python', 'Django', 'AI Agents', 'PostgreSQL', 'Workflow Automation'],
-          email_sent_to: 'job.msalehi@gmail.com',
+          email_sent_to: 'user@example.com',
         },
       },
       {
@@ -779,7 +833,7 @@ class MockApiClient implements ApiClient {
           status: 'new',
           source_platform: 'jobinja',
           requirements: ['Python', 'Django', 'DRF', 'Pandas', 'PostgreSQL', 'LLM Orchestration'],
-          email_sent_to: 'job.msalehi@gmail.com',
+          email_sent_to: 'user@example.com',
         },
       },
     ];
@@ -788,8 +842,8 @@ class MockApiClient implements ApiClient {
       id: `email-digest-${Date.now()}`,
       type: 'email',
       title: 'گزارش فرصت‌های شغلی جدید (جابینجا و جاب‌ویژن)',
-      summary: `ارسال خودکار به job.msalehi@gmail.com: استخراج و تحلیل ${scraped.length} موقعیت جدید پایتون و جنگو با تطابق بالای ۹۵٪ با هوش مصنوعی جمنای.`,
-      content: `به: job.msalehi@gmail.com
+      summary: `ارسال خودکار به user@example.com: استخراج و تحلیل ${scraped.length} موقعیت جدید پایتون و جنگو با تطابق بالای ۹۵٪ با هوش مصنوعی جمنای.`,
+      content: `به: user@example.com
 فرستنده: رادار هوشمند کاریابی جمنای
 تاریخ ارسال: ${new Date().toLocaleDateString('fa-IR')}
 موضوع: فرصت‌های شغلی جدید (جابینجا و جاب‌ویژن) - [${new Date().toLocaleDateString('fa-IR')}]
@@ -802,7 +856,7 @@ ${scraped.map((j, idx) => `${idx + 1}. ${j.title} (${j.job_meta?.company})
 - نیازمندی‌ها: ${j.job_meta?.requirements?.join(', ')}
 - لینک مستقیم: ${j.source_url}
 - دلیل تطابق: ${j.job_meta?.match_reason}`).join('\n\n')}`,
-      source_url: 'mailto:job.msalehi@gmail.com',
+      source_url: 'mailto:user@example.com',
       source_name: 'گزارش ایمیل خودکار',
       category: 'گزارش روزانه',
       tags: ['Email', 'Jobinja', 'Jobvision', 'Python', 'Sent', 'Daily'],
@@ -835,7 +889,7 @@ ${scraped.map((j, idx) => `${idx + 1}. ${j.title} (${j.job_meta?.company})
     }
     return {
       bot_username: 'knowledgehubpwabot',
-      owner_chat_id: '92127061',
+      owner_chat_id: '••••••',
       connected: true,
     };
   }
@@ -917,7 +971,7 @@ ${scraped.map((j, idx) => `${idx + 1}. ${j.title} (${j.job_meta?.company})
       is_favorite: true,
       stars_count: 24,
       source_channel: 'telegram' as const,
-      telegram_sender: '92127061',
+      telegram_sender: 'mock-chat',
     };
 
     try {
@@ -1238,10 +1292,10 @@ class HttpApiClient implements ApiClient {
   }
 }
 
-export function createApiClient(): ApiClient {
-  const envUrl = (import.meta.env.VITE_API_URL as string | undefined)?.trim();
+function readStoredConnection(): { url: string; token: string } {
+  const envUrl = (import.meta.env.VITE_API_URL as string | undefined)?.trim() || '';
   let storedUrl = '';
-  let storedToken = 'hub_usr_sec_99384721';
+  let storedToken = 'mock-preview-token';
 
   try {
     const raw = localStorage.getItem(STORAGE_KEYS.SETTINGS);
@@ -1254,13 +1308,39 @@ export function createApiClient(): ApiClient {
     // ignore
   }
 
-  const effectiveUrl = envUrl || storedUrl;
+  return { url: envUrl || storedUrl, token: storedToken };
+}
 
-  if (effectiveUrl) {
-    return new HttpApiClient(effectiveUrl, storedToken);
+export function createApiClient(): ApiClient {
+  const { url, token } = readStoredConnection();
+  if (url) {
+    return new HttpApiClient(url, token);
   }
-
   return new MockApiClient();
 }
 
-export const api = createApiClient();
+let cachedKey = '';
+let cachedClient: ApiClient | null = null;
+
+function resolveClient(): ApiClient {
+  const { url, token } = readStoredConnection();
+  const key = `${url}|${token}`;
+  if (!cachedClient || cachedKey !== key) {
+    cachedClient = url ? new HttpApiClient(url, token) : new MockApiClient();
+    cachedKey = key;
+  }
+  return cachedClient;
+}
+
+/**
+ * Lazy proxy: the concrete client (mock ↔ HTTP) is resolved on every call so
+ * that saving an API URL + token in Settings switches the app over without a
+ * full page reload.
+ */
+export const api: ApiClient = new Proxy({} as ApiClient, {
+  get(_target, prop) {
+    const client = resolveClient();
+    const value = (client as unknown as Record<string | symbol, unknown>)[prop];
+    return typeof value === 'function' ? value.bind(client) : value;
+  },
+});

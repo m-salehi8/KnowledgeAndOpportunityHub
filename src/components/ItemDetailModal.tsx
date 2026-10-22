@@ -17,13 +17,17 @@ import {
   DollarSign,
   Briefcase,
   Laptop,
+  Rocket,
+  ChevronUp,
+  ChevronDown,
 } from 'lucide-react';
-import { motion, AnimatePresence } from 'motion/react';
+import { motion, AnimatePresence, useAnimation, useReducedMotion } from 'motion/react';
 import { Item, JobStatus } from '../types';
 import { useApp } from '../context/AppContext';
 import { formatExactDate, normalizeTag } from '../utils/format';
 import { JobScoreRing } from './JobScoreRing';
 import { api } from '../api/client';
+import { hapticImpact, hapticTap } from '../utils/haptics';
 
 interface ItemDetailModalProps {
   item: Item | null;
@@ -41,26 +45,27 @@ interface SheetProps {
 
 const JobStatusMap: JobStatus[] = ['new', 'saved', 'applied', 'interview', 'rejected'];
 
+const DETENTS = {
+  medium: 0.62,
+  large: 0.94,
+} as const;
+
+type Detent = keyof typeof DETENTS;
+
 const Sheet: React.FC<SheetProps> = ({ item, onClose, onUpdate, onDelete }) => {
   const { lang, t, showToast } = useApp();
+  const reduce = useReducedMotion();
   const [newTagInput, setNewTagInput] = useState('');
   const [isAddingTag, setIsAddingTag] = useState(false);
   const [isReenriching, setIsReenriching] = useState(false);
-  const [dragOffset, setDragOffset] = useState(0);
-  const [isDragging, setIsDragging] = useState(false);
-  const dragStart = useRef<{ y: number; t: number } | null>(null);
-  const dragLast = useRef<{ y: number; t: number } | null>(null);
+  const [detent, setDetent] = useState<Detent>('medium');
+  const sheetControls = useAnimation();
 
   const handleFavoriteToggle = async () => {
     try {
       const updated = await api.patchItem(item.id, { is_favorite: !item.is_favorite });
       onUpdate(updated);
-      showToast(
-        updated.is_favorite
-          ? (lang === 'fa' ? 'به نشان‌شده‌ها افزوده شد' : 'Added to favorites')
-          : (lang === 'fa' ? 'از نشان‌شده‌ها حذف شد' : 'Removed from favorites'),
-        'success'
-      );
+      showToast(updated.is_favorite ? 'به ذخیره‌شده‌ها افزوده شد' : 'از ذخیره‌شده‌ها حذف شد', 'success');
     } catch (err) {
       showToast((err as Error).message, 'error');
     }
@@ -70,26 +75,22 @@ const Sheet: React.FC<SheetProps> = ({ item, onClose, onUpdate, onDelete }) => {
     try {
       const updated = await api.patchItem(item.id, { is_archived: !item.is_archived });
       onUpdate(updated);
-      showToast(
-        updated.is_archived
-          ? (lang === 'fa' ? 'به آرشیو منتقل شد' : 'Archived')
-          : (lang === 'fa' ? 'از آرشیو خارج شد' : 'Unarchived'),
-        'info'
-      );
+      showToast(updated.is_archived ? 'به بایگانی منتقل شد' : 'از بایگانی خارج شد', 'info');
     } catch (err) {
       showToast((err as Error).message, 'error');
     }
   };
 
   const handleDelete = async () => {
-    if (!window.confirm(lang === 'fa' ? 'آیا از حذف این مورد اطمینان دارید؟' : 'Are you sure you want to delete this item?')) {
+    if (!window.confirm(lang === 'fa' ? 'آیا از حذف این مورد اطمینان دارید؟' : 'Delete this item?')) {
       return;
     }
     try {
+      hapticImpact();
       await api.deleteItem(item.id);
       onDelete(item.id);
       onClose();
-      showToast(lang === 'fa' ? 'مورد حذف شد' : 'Item deleted', 'info');
+      showToast('مورد حذف شد', 'info');
     } catch (err) {
       showToast((err as Error).message, 'error');
     }
@@ -97,11 +98,11 @@ const Sheet: React.FC<SheetProps> = ({ item, onClose, onUpdate, onDelete }) => {
 
   const handleReenrich = async () => {
     setIsReenriching(true);
-    showToast(lang === 'fa' ? 'در حال بازتولید تحلیل و خلاصه هوش مصنوعی...' : 'Re-running AI enrichment...', 'info');
+    showToast('در حال بازتولید تحلیل و خلاصه هوش مصنوعی...', 'info');
     try {
       const updated = await api.reenrichItem(item.id);
       onUpdate(updated);
-      showToast(lang === 'fa' ? 'خلاصه با موفقیت به‌روزرسانی شد' : 'AI enrichment complete', 'success');
+      showToast('خلاصه با موفقیت به‌روزرسانی شد', 'success');
     } catch (err) {
       showToast((err as Error).message, 'error');
     } finally {
@@ -113,12 +114,7 @@ const Sheet: React.FC<SheetProps> = ({ item, onClose, onUpdate, onDelete }) => {
     try {
       const updated = await api.patchJobStatus(item.id, newStatus);
       onUpdate(updated);
-      showToast(
-        lang === 'fa'
-          ? `وضعیت به «${t[`status_${newStatus}` as keyof typeof t]}» تغییر یافت`
-          : `Status updated to ${newStatus}`,
-        'success'
-      );
+      showToast(`وضعیت به «${t[`status_${newStatus}` as keyof typeof t]}» تغییر یافت`, 'success');
     } catch (err) {
       showToast((err as Error).message, 'error');
     }
@@ -128,13 +124,11 @@ const Sheet: React.FC<SheetProps> = ({ item, onClose, onUpdate, onDelete }) => {
     e.preventDefault();
     const tag = normalizeTag(newTagInput);
     if (!tag) return;
-
     if (item.tags.includes(tag)) {
       setNewTagInput('');
       setIsAddingTag(false);
       return;
     }
-
     try {
       const updated = await api.patchItem(item.id, { tags: [...item.tags, tag] });
       onUpdate(updated);
@@ -157,6 +151,7 @@ const Sheet: React.FC<SheetProps> = ({ item, onClose, onUpdate, onDelete }) => {
   };
 
   const handleShare = async () => {
+    hapticTap();
     if (navigator.share) {
       try {
         await navigator.share({
@@ -169,24 +164,26 @@ const Sheet: React.FC<SheetProps> = ({ item, onClose, onUpdate, onDelete }) => {
       }
     } else if (item.source_url) {
       await navigator.clipboard.writeText(item.source_url);
-      showToast(lang === 'fa' ? 'لینک در کلیپ‌بورد کپی شد' : 'Link copied to clipboard', 'info');
+      showToast('لینک در کلیپ‌بورد کپی شد', 'info');
     }
   };
 
   const formattedDate = formatExactDate(item.created_at, lang);
 
-  const getSourceIcon = () => {
+  const sourceIcon = () => {
     switch (item.type) {
       case 'telegram':
-        return <Send className="h-3.5 w-3.5 text-sky-300" />;
+        return <Send className="h-4 w-4" strokeWidth={1.75} />;
       case 'news':
-        return <Newspaper className="h-3.5 w-3.5 text-emerald-300" />;
+        return <Newspaper className="h-4 w-4" strokeWidth={1.75} />;
       case 'job':
-        return <Compass className="h-3.5 w-3.5 text-indigo-300" />;
+        return <Compass className="h-4 w-4" strokeWidth={1.75} />;
       case 'email':
-        return <Mail className="h-3.5 w-3.5 text-amber-300" />;
+        return <Mail className="h-4 w-4" strokeWidth={1.75} />;
+      case 'producthunt':
+        return <Rocket className="h-4 w-4" strokeWidth={1.75} />;
       default:
-        return <Sparkles className="h-3.5 w-3.5 text-cyan-300" />;
+        return <Sparkles className="h-4 w-4" strokeWidth={1.75} />;
     }
   };
 
@@ -200,277 +197,298 @@ const Sheet: React.FC<SheetProps> = ({ item, onClose, onUpdate, onDelete }) => {
       ? 'جستجوی آگهی‌های مشابه در جابینجا'
       : 'مشاهده آگهی در جابینجا'
     : sourceUrl.includes('jobvision')
-    ? isAggregatedJobLink
-      ? 'جستجوی آگهی‌های مشابه در جاب‌ویژن'
-      : 'مشاهده آگهی در جاب‌ویژن'
-    : isAggregatedJobLink
-    ? 'مشاهده آگهی‌های مشابه'
-    : t.open_source;
+      ? isAggregatedJobLink
+        ? 'جستجوی آگهی‌های مشابه در جاب‌ویژن'
+        : 'مشاهده آگهی در جاب‌ویژن'
+      : isAggregatedJobLink
+        ? 'مشاهده آگهی‌های مشابه'
+        : t.open_source;
 
-  const handleDragStart = (e: React.TouchEvent) => {
-    dragStart.current = { y: e.touches[0].clientY, t: Date.now() };
-    dragLast.current = { ...dragStart.current };
-    setIsDragging(true);
+  /* --- drag to dismiss / expand --- */
+  const dragStart = useRef<number | null>(null);
+  const dragDelta = useRef(0);
+
+  const handlePointerDown = (event: React.PointerEvent) => {
+    dragStart.current = event.clientY;
+    dragDelta.current = 0;
   };
 
-  const handleDragMove = (e: React.TouchEvent) => {
-    if (!dragStart.current) return;
-    const y = e.touches[0].clientY;
-    dragLast.current = { y, t: Date.now() };
-    setDragOffset(Math.max(0, y - dragStart.current.y));
+  const handlePointerMove = (event: React.PointerEvent) => {
+    if (dragStart.current === null) return;
+    const delta = Math.max(0, event.clientY - dragStart.current);
+    dragDelta.current = delta;
+    sheetControls.set({ y: delta });
   };
 
-  const handleDragEnd = () => {
-    const start = dragStart.current;
-    const last = dragLast.current;
-    const offset = start && last ? Math.max(0, last.y - start.y) : dragOffset;
-    let velocity = 0;
-    if (start && last && last.t > start.t) {
-      velocity = (last.y - start.y) / (last.t - start.t);
-    }
-    setIsDragging(false);
+  const handlePointerUp = () => {
+    const delta = dragDelta.current;
     dragStart.current = null;
-    if (offset > 110 || (offset > 40 && velocity > 0.55)) {
+    dragDelta.current = 0;
+    if (delta > 110) {
       onClose();
       return;
     }
-    setDragOffset(0);
+    sheetControls.start({ y: 0, transition: { type: 'spring', stiffness: 380, damping: 34 } });
   };
 
+  const ratio = DETENTS[detent];
+
   return (
-    <div className="fixed inset-0 z-[60] flex items-end justify-center">
-      {/* Backdrop */}
+    <div className="fixed inset-0 z-[70] flex items-end justify-center" dir="rtl">
       <motion.div
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
-        transition={{ duration: 0.28 }}
+        transition={{ duration: 0.2 }}
         onClick={onClose}
-        className="absolute inset-0 bg-slate-950/55 backdrop-blur-md"
+        className="absolute inset-0 bg-black/45"
       />
 
-      {/* Sheet */}
       <motion.div
+        role="dialog"
+        aria-modal="true"
+        aria-label={item.title}
         initial={{ y: '100%' }}
         animate={{ y: 0 }}
         exit={{ y: '100%' }}
-        transition={{ type: 'spring', damping: 30, stiffness: 320, mass: 0.9 }}
+        transition={reduce ? { duration: 0.01 } : { type: 'spring', stiffness: 380, damping: 34 }}
         className="relative flex w-full max-w-[430px] flex-col"
-        role="dialog"
-        aria-modal="true"
+        style={{
+          height: `${ratio * 100}dvh`,
+          transitionProperty: 'height',
+          transitionDuration: '0.32s',
+          transitionTimingFunction: 'cubic-bezier(0.32, 0.72, 0, 1)',
+        }}
       >
-        <div
-          className="ios-glass-sheet flex max-h-[92dvh] w-full flex-col overflow-hidden rounded-t-[38px] text-slate-900 dark:text-slate-100"
-          style={{
-            transform: `translateY(${dragOffset}px)`,
-            transition: isDragging ? 'none' : 'transform 0.32s cubic-bezier(0.22, 1, 0.36, 1)',
-          }}
+        <motion.div
+          animate={sheetControls}
+          className="flex h-full w-full flex-col overflow-hidden rounded-t-[24px] ios-sheet"
         >
+        {/* Sticky header */}
         <div
-          className="shrink-0 touch-none"
-          onTouchStart={handleDragStart}
-          onTouchMove={handleDragMove}
-          onTouchEnd={handleDragEnd}
-          onTouchCancel={handleDragEnd}
+          onPointerDown={handlePointerDown}
+          onPointerMove={handlePointerMove}
+          onPointerUp={handlePointerUp}
+          onPointerCancel={handlePointerUp}
+          className="shrink-0 touch-none px-4 pb-2 pt-1"
         >
-          <div className="ios-grabber" />
-
-          {/* Header */}
-          <div className="flex shrink-0 items-center justify-between gap-2 px-5 pb-2">
-          <div className="flex min-w-0 items-center gap-2 text-[10px] text-slate-500 dark:text-slate-400">
-            {getSourceIcon()}
-            <span className="truncate font-semibold text-slate-800 dark:text-slate-200">
-              {item.source_name}
-            </span>
-            <span aria-hidden="true" className="opacity-40">·</span>
-            <span className="shrink-0">{item.category}</span>
-          </div>
-
-          <div className="flex shrink-0 items-center gap-1.5">
+          <div className="flex justify-center">
             <button
               type="button"
-              onClick={handleFavoriteToggle}
-              className="ios-icon-button h-9 w-9"
-              title={t.favorite}
+              onClick={() => setDetent((d) => (d === 'medium' ? 'large' : 'medium'))}
+              className="flex h-6 w-24 items-center justify-center"
+              aria-label={detent === 'medium' ? 'بزرگ‌کردن' : 'کوچک‌کردن'}
             >
-              <Star className={`h-4 w-4 ${item.is_favorite ? 'fill-amber-400 text-amber-400' : ''}`} />
-            </button>
-            <button type="button" onClick={handleShare} className="ios-icon-button h-9 w-9" title={t.share}>
-              <Share2 className="h-4 w-4" />
-            </button>
-            <button type="button" onClick={onClose} className="ios-icon-button h-9 w-9" title="Close">
-              <X className="h-4.5 w-4.5" />
+              <span className="ios-sheet-handle !m-0" />
             </button>
           </div>
+
+          <div className="flex items-center justify-between gap-2 py-1.5">
+            <div className="flex min-w-0 items-center gap-2 text-[12px] text-[var(--text-secondary)]">
+              <span className="shrink-0 text-[var(--accent)]">{sourceIcon()}</span>
+              <span dir="auto" className="truncate font-semibold text-[var(--text-primary)]">
+                {item.source_name}
+              </span>
+              <span aria-hidden="true" className="opacity-40">
+                ·
+              </span>
+              <span className="shrink-0">{item.category}</span>
+            </div>
+
+            <div className="flex shrink-0 items-center gap-1">
+              <button
+                type="button"
+                onClick={handleFavoriteToggle}
+                className="ios-icon-button h-9 w-9"
+                aria-label={item.is_favorite ? t.unfavorite : t.favorite}
+              >
+                <Star
+                  className={`h-[18px] w-[18px] ${item.is_favorite ? 'fill-[var(--warning)] text-[var(--warning)]' : ''}`}
+                  strokeWidth={1.75}
+                />
+              </button>
+              <button
+                type="button"
+                onClick={handleShare}
+                className="ios-icon-button h-9 w-9"
+                aria-label={t.share}
+              >
+                <Share2 className="h-[18px] w-[18px]" strokeWidth={1.75} />
+              </button>
+              <button
+                type="button"
+                onClick={onClose}
+                className="ios-icon-button h-9 w-9"
+                aria-label="بستن"
+              >
+                <X className="h-[18px] w-[18px]" strokeWidth={1.75} />
+              </button>
+            </div>
           </div>
         </div>
 
-        {/* Scrollable body */}
-        <div className="no-scrollbar min-h-0 flex-1 space-y-4 overflow-y-auto px-5 pb-4 pt-2">
-          <div>
-            <h2 dir="auto" className="text-[19px] font-bold leading-snug text-slate-900 dark:text-white">
-              {item.title}
-            </h2>
-            <p className="mt-1 text-[10px] text-slate-400 dark:text-slate-500">{formattedDate}</p>
-          </div>
+        {/* Body */}
+        <div className="no-scrollbar min-h-0 flex-1 overflow-y-auto px-4 pb-4">
+          <h2 dir="auto" className="text-[20px] font-bold leading-[1.6] text-[var(--text-primary)]">
+            {item.title}
+          </h2>
+          <p className="mt-1 text-[11px] text-[var(--text-tertiary)]">{formattedDate}</p>
 
-          {/* Job analysis */}
+          {/* Job block */}
           {item.type === 'job' && item.job_meta && (
-            <>
-              <div className="relative overflow-hidden rounded-[24px] border border-emerald-300/25 bg-gradient-to-br from-emerald-400/[0.16] via-teal-400/[0.08] to-cyan-400/[0.06] p-4 backdrop-blur-xl">
-                <div
-                  aria-hidden="true"
-                  className="pointer-events-none absolute -end-12 -top-12 h-32 w-32 rounded-full"
-                  style={{
-                    background: 'radial-gradient(circle, rgba(16,185,129,0.35), transparent 70%)',
-                    filter: 'blur(18px)',
-                  }}
-                />
-
-                <div className="relative flex items-start justify-between gap-3">
-                  <div className="min-w-0">
-                    <div className="flex items-center gap-1.5 text-[10px] font-bold text-emerald-200">
-                      <Sparkles className="h-3.5 w-3.5" />
-                      <span>تحلیل هوش مصنوعی</span>
-                    </div>
-                    <h3 className="mt-1 flex items-center gap-1.5 text-sm font-bold text-slate-900 dark:text-white">
-                      <Briefcase className="h-4 w-4 text-emerald-300" />
-                      <span className="truncate">{item.job_meta.company}</span>
-                    </h3>
-                    <p dir="auto" className="mt-2 text-[11px] leading-relaxed text-slate-600 dark:text-slate-300">
-                      {item.job_meta.match_reason}
-                    </p>
-                  </div>
-                  <JobScoreRing score={item.job_meta.match_score} size={62} strokeWidth={4} />
-                </div>
-              </div>
-
-              {/* Metadata row */}
-              <div className="grid grid-cols-3 gap-2">
-                <div className="ios-glass-subtile min-w-0 p-2.5 text-center">
-                  <Laptop className="mx-auto h-3.5 w-3.5 text-emerald-300" />
-                  <div className="mt-1 truncate text-[9.5px] font-semibold text-slate-200">
-                    {item.job_meta.remote ? 'دورکاری' : 'حضوری'}
-                  </div>
-                </div>
-                <div className="ios-glass-subtile min-w-0 p-2.5 text-center">
-                  <MapPin className="mx-auto h-3.5 w-3.5 text-cyan-300" />
-                  <div dir="auto" className="mt-1 truncate text-[9.5px] font-semibold text-slate-200">
-                    {item.job_meta.location}
-                  </div>
-                </div>
-                <div className="ios-glass-subtile min-w-0 p-2.5 text-center">
-                  <DollarSign className="mx-auto h-3.5 w-3.5 text-amber-300" />
-                  <div dir="ltr" className="mt-1 truncate text-[9.5px] font-semibold text-slate-200">
-                    {item.job_meta.salary_text || 'توافقی'}
-                  </div>
-                </div>
-              </div>
-
-              {/* Status selector */}
-              <div>
-                <div className="mb-2 flex items-center justify-between">
-                  <span className="text-[10.5px] font-semibold text-slate-500 dark:text-slate-400">
-                    وضعیت درخواست
+            <section className="ios-card mt-4 p-4">
+              <div className="flex items-start gap-3">
+                <div className="min-w-0 flex-1">
+                  <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-[var(--success)]">
+                    <Sparkles className="h-3.5 w-3.5" strokeWidth={1.75} />
+                    تحلیل هوش مصنوعی
                   </span>
-                  {item.job_meta.email_sent_to && (
-                    <span className="flex items-center gap-1 text-[9px] font-medium text-emerald-300">
-                      <Mail className="h-3 w-3" />
-                      ایمیل شد
+                  <h3 className="mt-1.5 flex items-center gap-1.5 text-[15px] font-semibold text-[var(--text-primary)]">
+                    <Briefcase className="h-4 w-4 text-[var(--success)]" strokeWidth={1.75} />
+                    <span dir="auto" className="truncate">
+                      {item.job_meta.company}
                     </span>
-                  )}
+                  </h3>
                 </div>
-                <div className="flex flex-wrap gap-1.5">
-                  {JobStatusMap.map((st) => {
-                    const isCurrent = item.job_meta?.status === st;
-                    return (
-                      <button
-                        key={st}
-                        type="button"
-                        onClick={() => handleJobStatusChange(st)}
-                        className={`ios-press rounded-full px-3 py-1.5 text-[10px] font-semibold transition-all ${
-                          isCurrent
-                            ? 'ios-glass-emerald'
-                            : 'border border-white/10 bg-white/[0.055] text-slate-400 backdrop-blur-md'
-                        }`}
-                      >
-                        {t[`status_${st}` as keyof typeof t]}
-                      </button>
-                    );
-                  })}
-                </div>
+                <JobScoreRing score={item.job_meta.match_score} size={58} strokeWidth={4.5} />
               </div>
 
-              {/* Requirements */}
-              {item.job_meta.requirements && item.job_meta.requirements.length > 0 && (
-                <div>
-                  <span className="mb-2 block text-[10.5px] font-semibold text-slate-500 dark:text-slate-400">
-                    نیازمندی‌ها
-                  </span>
-                  <div className="flex flex-wrap gap-1.5">
-                    {item.job_meta.requirements.map((req, i) => (
-                      <span
-                        key={i}
-                        className="rounded-full border border-white/10 bg-white/[0.055] px-2.5 py-1 text-[9.5px] font-medium text-slate-300 backdrop-blur-md"
-                      >
-                        <bdi dir="ltr">{req}</bdi>
-                      </span>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </>
+              <p
+                dir="auto"
+                className="mt-3 text-[13px] leading-[1.7] text-[var(--text-secondary)]"
+              >
+                {item.job_meta.match_reason}
+              </p>
+
+              <div className="mt-3 flex flex-wrap gap-1.5">
+                <span className="ios-chip h-[26px] min-h-[26px] px-2.5 text-[11px]">
+                  {item.job_meta.remote ? (
+                    <>
+                      <Laptop className="h-3 w-3" strokeWidth={1.75} />
+                      دورکاری
+                    </>
+                  ) : (
+                    <>
+                      <MapPin className="h-3 w-3" strokeWidth={1.75} />
+                      حضوری
+                    </>
+                  )}
+                </span>
+                <span className="ios-chip h-[26px] min-h-[26px] px-2.5 text-[11px]">
+                  <MapPin className="h-3 w-3" strokeWidth={1.75} />
+                  <bdi dir="ltr">{item.job_meta.location}</bdi>
+                </span>
+                <span className="ios-chip h-[26px] min-h-[26px] px-2.5 text-[11px]" data-tone="warning">
+                  <DollarSign className="h-3 w-3" strokeWidth={1.75} />
+                  <bdi dir="ltr">{item.job_meta.salary_text || 'توافقی'}</bdi>
+                </span>
+              </div>
+            </section>
           )}
 
-          {/* AI summary */}
-          <div className="ios-glass-card overflow-hidden p-4">
+          {/* AI summary — visually distinct card */}
+          <section
+            className="mt-4 rounded-[var(--r-card)] p-4"
+            style={{ background: 'var(--accent-soft)', border: '0.5px solid var(--accent-separator)' }}
+          >
             <div className="mb-2 flex items-center justify-between gap-2">
-              <div className="flex items-center gap-1.5 text-[10.5px] font-bold text-cyan-200">
-                <Sparkles className="h-3.5 w-3.5" />
-                <span>خلاصه هوشمند Gemini</span>
-              </div>
+              <span className="inline-flex items-center gap-1.5 text-[12px] font-semibold text-[var(--accent)]">
+                <Sparkles className="h-3.5 w-3.5" strokeWidth={1.75} />
+                خلاصه هوشمند
+              </span>
               <button
                 type="button"
                 onClick={handleReenrich}
                 disabled={isReenriching}
-                className="flex items-center gap-1 text-[9.5px] font-semibold text-cyan-300 disabled:opacity-50"
-                title={t.reenrich}
+                className="inline-flex items-center gap-1 text-[11px] font-semibold text-[var(--accent)] disabled:opacity-50"
+                aria-label={t.reenrich}
               >
-                <Sparkles className={`h-3 w-3 ${isReenriching ? 'animate-spin' : ''}`} />
+                <Sparkles
+                  className={`h-3 w-3 ${isReenriching ? 'animate-spin' : ''}`}
+                  strokeWidth={1.75}
+                />
                 <span>{isReenriching ? 'در حال بازتولید...' : t.reenrich}</span>
               </button>
             </div>
-            <p dir="auto" className="text-[11.5px] font-normal leading-relaxed text-slate-600 dark:text-slate-200">
+            <p dir="auto" className="text-[14px] leading-[1.8] text-[var(--text-primary)]">
               {item.summary}
             </p>
-          </div>
+          </section>
+
+          {/* Job status */}
+          {item.type === 'job' && item.job_meta && (
+            <section className="mt-5">
+              <div className="mb-2 flex items-center justify-between">
+                <h3 className="text-[13px] font-semibold text-[var(--text-secondary)]">
+                  وضعیت درخواست
+                </h3>
+                {item.job_meta.email_sent_to && (
+                  <span className="flex items-center gap-1 text-[11px] font-medium text-[var(--success)]">
+                    <Mail className="h-3 w-3" strokeWidth={1.75} />
+                    ایمیل شد
+                  </span>
+                )}
+              </div>
+              <div className="no-scrollbar flex items-center gap-1.5 overflow-x-auto pb-1">
+                {JobStatusMap.map((st) => {
+                  const isCurrent = item.job_meta?.status === st;
+                  return (
+                    <button
+                      key={st}
+                      type="button"
+                      onClick={() => handleJobStatusChange(st)}
+                      className="ios-chip h-[32px] min-h-[32px] shrink-0 px-3 text-[12px]"
+                      data-active={isCurrent}
+                      aria-pressed={isCurrent}
+                    >
+                      {t[`status_${st}` as keyof typeof t]}
+                    </button>
+                  );
+                })}
+              </div>
+            </section>
+          )}
+
+          {/* Requirements */}
+          {item.type === 'job' && item.job_meta?.requirements?.length ? (
+            <section className="mt-5">
+              <h3 className="mb-2 text-[13px] font-semibold text-[var(--text-secondary)]">
+                نیازمندی‌ها
+              </h3>
+              <div className="flex flex-wrap gap-1.5">
+                {item.job_meta.requirements.map((req, i) => (
+                  <span key={i} className="ios-chip h-[26px] min-h-[26px] px-2.5 text-[11px]">
+                    <bdi dir="ltr">{req}</bdi>
+                  </span>
+                ))}
+              </div>
+            </section>
+          ) : null}
 
           {/* Reader */}
-          <div>
-            <h3 className="mb-2 text-[9.5px] font-bold uppercase tracking-[0.16em] text-slate-500 dark:text-slate-400">
+          <section className="mt-5">
+            <h3 className="mb-2 text-[13px] font-semibold text-[var(--text-secondary)]">
               {t.reader_mode}
             </h3>
             <div
               dir="auto"
-              className="ios-reader whitespace-pre-line rounded-[22px] p-4 text-[11.5px] font-normal leading-relaxed text-slate-600 dark:text-slate-300"
+              className="ios-readable rounded-[var(--r-card)] bg-[var(--fill-quaternary)] p-4"
             >
               {item.content || item.summary}
             </div>
-          </div>
+          </section>
 
           {/* Tags */}
-          <div>
+          <section className="mt-5">
             <div className="mb-2 flex items-center justify-between">
-              <span className="text-[10.5px] font-semibold text-slate-500 dark:text-slate-400">
-                برچسب‌ها
-              </span>
+              <h3 className="text-[13px] font-semibold text-[var(--text-secondary)]">برچسب‌ها</h3>
               {!isAddingTag && (
                 <button
                   type="button"
                   onClick={() => setIsAddingTag(true)}
-                  className="flex items-center gap-1 text-[10px] font-semibold text-cyan-300"
+                  className="inline-flex items-center gap-1 text-[12px] font-semibold text-[var(--accent)]"
                 >
-                  <Plus className="h-3.5 w-3.5" />
+                  <Plus className="h-3.5 w-3.5" strokeWidth={1.75} />
                   <span>{t.add_tag}</span>
                 </button>
               )}
@@ -478,18 +496,15 @@ const Sheet: React.FC<SheetProps> = ({ item, onClose, onUpdate, onDelete }) => {
 
             <div className="flex flex-wrap items-center gap-1.5">
               {item.tags.map((tag) => (
-                <span
-                  key={tag}
-                  className="inline-flex items-center gap-1 rounded-full border border-white/10 bg-white/[0.055] px-2.5 py-1 text-[10px] text-slate-300 backdrop-blur-md"
-                >
+                <span key={tag} className="ios-chip h-[28px] min-h-[28px] px-2.5 text-[11px]">
                   <bdi dir="ltr">#{normalizeTag(tag)}</bdi>
                   <button
                     type="button"
                     onClick={() => handleRemoveTag(tag)}
-                    className="ms-0.5 text-slate-500 transition-colors hover:text-rose-400"
-                    title="Remove tag"
+                    className="ms-0.5 text-[var(--text-tertiary)]"
+                    aria-label={`حذف برچسب ${normalizeTag(tag)}`}
                   >
-                    <X className="h-3 w-3" />
+                    <X className="h-3 w-3" strokeWidth={1.75} />
                   </button>
                 </span>
               ))}
@@ -502,45 +517,47 @@ const Sheet: React.FC<SheetProps> = ({ item, onClose, onUpdate, onDelete }) => {
                     placeholder="نام برچسب..."
                     value={newTagInput}
                     onChange={(e) => setNewTagInput(e.target.value)}
-                    className="ios-field h-7 w-28 rounded-full px-2.5 text-[10px]"
+                    className="ios-field h-9 w-32 text-[13px]"
                   />
                   <button
                     type="submit"
-                    className="flex h-7 w-7 items-center justify-center rounded-full bg-cyan-500/25 text-[11px] text-cyan-100"
+                    className="ios-icon-button h-9 w-9 bg-[var(--accent-soft)] text-[var(--accent)]"
+                    aria-label="افزودن برچسب"
                   >
-                    <Check className="h-3.5 w-3.5" />
+                    <Check className="h-4 w-4" strokeWidth={1.75} />
                   </button>
                   <button
                     type="button"
                     onClick={() => setIsAddingTag(false)}
-                    className="flex h-7 w-7 items-center justify-center rounded-full bg-white/10 text-[11px] text-slate-400"
+                    className="ios-icon-button h-9 w-9"
+                    aria-label="انصراف"
                   >
-                    <X className="h-3.5 w-3.5" />
+                    <X className="h-4 w-4" strokeWidth={1.75} />
                   </button>
                 </form>
               )}
             </div>
-          </div>
+          </section>
         </div>
 
         {/* Sticky action bar */}
-        <div className="shrink-0 border-t border-white/[0.08] bg-slate-950/30 px-5 pb-safe pt-3 backdrop-blur-2xl dark:bg-slate-950/30">
+        <div className="shrink-0 border-t-0.5px border-[var(--glass-border)] px-4 pb-safe pt-3">
           <div className="flex items-center gap-2">
             <button
               type="button"
               onClick={handleArchiveToggle}
-              className="ios-icon-button h-11 w-11"
-              title={item.is_archived ? t.unarchive : t.archive}
+              className="ios-icon-button h-11 w-11 shrink-0"
+              aria-label={item.is_archived ? t.unarchive : t.archive}
             >
-              <Archive className="h-4 w-4" />
+              <Archive className="h-5 w-5" strokeWidth={1.75} />
             </button>
             <button
               type="button"
               onClick={handleDelete}
-              className="ios-icon-button h-11 w-11 text-slate-500 hover:text-rose-400"
-              title={t.delete}
+              className="ios-icon-button h-11 w-11 shrink-0 text-[var(--danger)]"
+              aria-label={t.delete}
             >
-              <Trash2 className="h-4 w-4" />
+              <Trash2 className="h-5 w-5" strokeWidth={1.75} />
             </button>
 
             {item.source_url ? (
@@ -548,23 +565,23 @@ const Sheet: React.FC<SheetProps> = ({ item, onClose, onUpdate, onDelete }) => {
                 href={item.source_url}
                 target="_blank"
                 rel="noreferrer"
-                className="ios-press flex h-11 flex-1 items-center justify-center gap-2 rounded-full border border-emerald-300/40 bg-gradient-to-r from-emerald-500/85 to-cyan-500/75 px-4 text-[11px] font-bold text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.35),0_10px_26px_-10px_rgba(16,185,129,0.8)]"
+                className="ios-btn ios-btn-primary h-11 flex-1 text-[14px]"
               >
                 <span className="truncate">{ctaLabel}</span>
-                <ExternalLink className="h-3.5 w-3.5 shrink-0" />
+                <ExternalLink className="h-4 w-4 shrink-0" strokeWidth={1.75} />
               </a>
             ) : (
               <button
                 type="button"
                 onClick={onClose}
-                className="ios-press h-11 flex-1 rounded-full border border-white/15 bg-white/10 text-[11px] font-semibold text-slate-100"
+                className="ios-btn ios-btn-secondary h-11 flex-1 text-[14px]"
               >
                 بستن
               </button>
             )}
           </div>
         </div>
-        </div>
+        </motion.div>
       </motion.div>
     </div>
   );

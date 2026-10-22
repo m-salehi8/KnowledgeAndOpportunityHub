@@ -15,7 +15,7 @@ import {
   TrendingUp,
   Cpu,
 } from 'lucide-react';
-import { useApp, TabType } from '../context/AppContext';
+import { useApp, TabType, InboxSection } from '../context/AppContext';
 import { toPersianDigits } from '../utils/format';
 
 interface NavItem {
@@ -23,10 +23,12 @@ interface NavItem {
   label: string;
   icon: React.ComponentType<{ className?: string }>;
   badge?: number;
+  section?: InboxSection;
 }
 
 export const DesktopSidebar: React.FC = () => {
-  const { activeTab, setActiveTab, stats, theme, setTheme, runJob, isRunningJob } = useApp();
+  const { activeTab, setActiveTab, setInboxSection, stats, theme, setTheme, runJob, isRunningJob } =
+    useApp();
 
   const navItems: NavItem[] = [
     {
@@ -42,12 +44,14 @@ export const DesktopSidebar: React.FC = () => {
       badge: stats?.high_match_jobs,
     },
     {
-      id: 'producthunt',
+      id: 'inbox',
+      section: 'producthunt',
       label: 'دایجست Product Hunt',
       icon: Rocket,
     },
     {
-      id: 'projects',
+      id: 'inbox',
+      section: 'projects',
       label: 'ابزارها، پروژه‌ها و تلگرام',
       icon: FolderKanban,
       badge: stats?.projects_count || 5,
@@ -99,14 +103,17 @@ export const DesktopSidebar: React.FC = () => {
         </div>
 
         {navItems.map((item) => {
-          const isActive = activeTab === item.id;
+          const isActive = activeTab === item.id && (!item.section || item.section === 'feed');
           const Icon = item.icon;
           const badgeCount = item.badge && item.badge > 0 ? item.badge : 0;
 
           return (
             <button
-              key={item.id}
-              onClick={() => setActiveTab(item.id)}
+              key={`${item.id}-${item.section ?? 'main'}`}
+              onClick={() => {
+                setActiveTab(item.id);
+                if (item.section) setInboxSection(item.section);
+              }}
               className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-2xl text-xs font-semibold transition-all duration-150 ${
                 isActive
                   ? 'bg-indigo-600 text-white shadow-sm shadow-indigo-600/30'

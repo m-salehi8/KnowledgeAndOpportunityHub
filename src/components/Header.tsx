@@ -1,102 +1,132 @@
 import React, { useEffect, useState } from 'react';
 import { Moon, RefreshCw, Sun } from 'lucide-react';
+import { motion, AnimatePresence, useReducedMotion } from 'motion/react';
 import { useApp, TabType } from '../context/AppContext';
+import { hapticTap } from '../utils/haptics';
 
 interface PageMeta {
   title: string;
   subtitle: string;
+  refresh?: 'news' | 'jobs';
 }
 
 const PAGE_META: Record<TabType, PageMeta> = {
-  inbox: { title: 'ورودی', subtitle: 'پیام‌ها، اخبار و فرصت‌های امروز' },
-  jobs: { title: 'رادار شغلی', subtitle: 'امتیازدهی هوشمند فرصت‌ها' },
-  producthunt: { title: 'پروداکت هانت', subtitle: 'دایجست روزانه محصولات' },
-  projects: { title: 'پروژه‌ها', subtitle: 'ابزارها، ایده‌ها و تلگرام' },
+  inbox: { title: 'ورودی', subtitle: 'پیام‌ها، اخبار و فرصت‌های امروز', refresh: 'news' },
+  jobs: { title: 'شغل‌ها', subtitle: 'رادار هوشمند فرصت‌های شغلی', refresh: 'jobs' },
   search: { title: 'جستجو', subtitle: 'کاوش در دانش و فرصت‌ها' },
-  saved: { title: 'نشان‌شده', subtitle: 'آرشیو و موارد منتخب شما' },
+  saved: { title: 'ذخیره‌شده‌ها', subtitle: 'موارد منتخب و آرشیو شما' },
   settings: { title: 'تنظیمات', subtitle: 'پروفایل، منابع و اعلان‌ها' },
 };
 
 export const Header: React.FC = () => {
-  const { theme, setTheme, activeTab, runJob, isRunningJob } = useApp();
+  const { resolvedTheme, setTheme, activeTab, inboxSection, runJob, isRunningJob } = useApp();
   const [scrolled, setScrolled] = useState(false);
+  const reduce = useReducedMotion();
 
   useEffect(() => {
-    const onScroll = () => setScrolled(window.scrollY > 48);
+    const onScroll = () => setScrolled(window.scrollY > 36);
     onScroll();
     window.addEventListener('scroll', onScroll, { passive: true });
     return () => window.removeEventListener('scroll', onScroll);
   }, []);
 
   const meta = PAGE_META[activeTab];
-  const isJobs = activeTab === 'jobs';
-  const isLongTitle = meta.title.length > 10;
-  const runLabel = isJobs ? 'اسکن رادار' : 'به‌روزرسانی';
+
+  const title =
+    activeTab === 'inbox' && inboxSection === 'projects'
+      ? 'پروژه‌ها'
+      : activeTab === 'inbox' && inboxSection === 'producthunt'
+        ? 'پروداکت'
+        : meta.title;
+
+  const subtitle =
+    activeTab === 'inbox' && inboxSection === 'projects'
+      ? 'ابزارها، ایده‌ها و تلگرام'
+      : activeTab === 'inbox' && inboxSection === 'producthunt'
+        ? 'دایجست روزانه محصولات'
+        : meta.subtitle;
+
+  const handleRefresh = () => {
+    if (!meta.refresh) return;
+    hapticTap();
+    runJob(meta.refresh);
+  };
+
+  const handleTheme = () => {
+    hapticTap();
+    setTheme(resolvedTheme === 'dark' ? 'light' : 'dark');
+  };
 
   return (
-    <header className={`ios-header ${scrolled ? 'is-scrolled' : ''}`}>
-      <div className="pt-safe px-4 pb-2.5">
-        <div className="flex items-start justify-between gap-3">
+    <header className={`ios-nav-bar ${scrolled ? 'is-scrolled' : ''}`}>
+      <div className="pt-safe px-4">
+        {/* Nav bar row */}
+        <div className="flex h-11 items-center gap-3">
           <div className="min-w-0 flex-1">
-            <p
-              className="ios-eyebrow overflow-hidden transition-all duration-300"
-              style={{
-                maxHeight: scrolled ? 0 : 16,
-                opacity: scrolled ? 0 : 1,
-                transform: scrolled ? 'translateY(-4px)' : 'translateY(0)',
-              }}
-            >
-              Knowledge &amp; Opportunity Hub
-            </p>
-
-            <h1
-              className={`ios-large-title truncate ${isLongTitle ? 'is-long' : ''} ${
-                scrolled ? 'is-compact' : ''
-              }`}
-            >
-              {meta.title}
-            </h1>
-
-            <div
-              className="overflow-hidden transition-all duration-300"
-              style={{
-                maxHeight: scrolled ? 0 : 22,
-                opacity: scrolled ? 0 : 1,
-                transform: scrolled ? 'translateY(-3px)' : 'translateY(0)',
-              }}
-            >
-              <p className="ios-subtitle mt-0.5 truncate">{meta.subtitle}</p>
-            </div>
+            <AnimatePresence initial={false} mode="popLayout">
+              {scrolled && (
+                <motion.h1
+                  key="inline-title"
+                  initial={reduce ? { opacity: 0 } : { opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={reduce ? { opacity: 0 } : { opacity: 0, y: -8 }}
+                  transition={{ type: 'spring', stiffness: 380, damping: 32 }}
+                  className="ios-inline-title truncate"
+                >
+                  {title}
+                </motion.h1>
+              )}
+            </AnimatePresence>
           </div>
 
-          <div className="flex shrink-0 items-center gap-2 pt-0.5">
-            <button
-              type="button"
-              onClick={() => (isJobs ? runJob('jobs') : runJob('news'))}
-              disabled={isRunningJob}
-              className="ios-action-pill disabled:opacity-50"
-              title={isJobs ? 'اجرای رادار شغلی' : 'به‌روزرسانی فیدها'}
-              aria-label={isJobs ? 'اجرای رادار شغلی' : 'به‌روزرسانی فیدها'}
-            >
-              <RefreshCw className={`h-3.5 w-3.5 text-cyan-300 ${isRunningJob ? 'animate-spin' : ''}`} />
-              <span className={scrolled ? 'hidden' : 'inline'}>{isRunningJob ? 'در حال اجرا' : runLabel}</span>
-            </button>
+          <div className="flex shrink-0 items-center gap-2">
+            {meta.refresh && (
+              <button
+                type="button"
+                onClick={handleRefresh}
+                disabled={isRunningJob}
+                aria-label={meta.refresh === 'jobs' ? 'اجرای رادار شغلی' : 'به‌روزرسانی فیدها'}
+                title={meta.refresh === 'jobs' ? 'اجرای رادار شغلی' : 'به‌روزرسانی فیدها'}
+                className="ios-icon-button h-9 w-9 disabled:opacity-50"
+              >
+                <RefreshCw
+                  className={`h-[18px] w-[18px] ${isRunningJob ? 'animate-spin' : ''}`}
+                  strokeWidth={1.75}
+                />
+              </button>
+            )}
 
             <button
               type="button"
-              onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-              className="ios-icon-button"
-              aria-label="تغییر حالت نمایش"
-              title={theme === 'dark' ? 'حالت روشن' : 'حالت تاریک'}
+              onClick={handleTheme}
+              className="ios-icon-button h-9 w-9"
+              aria-label={resolvedTheme === 'dark' ? 'تغییر به حالت روشن' : 'تغییر به حالت تاریک'}
+              title={resolvedTheme === 'dark' ? 'حالت روشن' : 'حالت تاریک'}
             >
-              {theme === 'dark' ? (
-                <Sun className="h-[18px] w-[18px] text-amber-300" />
+              {resolvedTheme === 'dark' ? (
+                <Sun className="h-[18px] w-[18px]" strokeWidth={1.75} />
               ) : (
-                <Moon className="h-[18px] w-[18px] text-indigo-600" />
+                <Moon className="h-[18px] w-[18px]" strokeWidth={1.75} />
               )}
             </button>
           </div>
         </div>
+
+        {/* Large title block */}
+        <motion.div
+          animate={
+            scrolled
+              ? { height: 0, opacity: 0, marginBottom: 0 }
+              : { height: 'auto', opacity: 1, marginBottom: 6 }
+          }
+          initial={false}
+          transition={{ duration: reduce ? 0 : 0.24, ease: [0.32, 0.72, 0, 1] }}
+          className="overflow-hidden"
+        >
+          <p className="ios-eyebrow mb-1">Knowledge &amp; Opportunity Hub</p>
+          <h1 className="ios-large-title">{title}</h1>
+          <p className="ios-subtitle mt-0.5">{subtitle}</p>
+        </motion.div>
       </div>
     </header>
   );

@@ -1,33 +1,46 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
-  Compass,
   Briefcase,
   Play,
   Mail,
   ExternalLink,
-  Sparkles,
   CheckCircle2,
   Clock,
   X,
   Copy,
   Check,
   Radar,
+  ArrowUpDown,
 } from 'lucide-react';
 import { Item, JobStatus } from '../../types';
+import { motion } from 'motion/react';
 import { useApp } from '../../context/AppContext';
 import { api } from '../../api/client';
 import { ItemCard } from '../ItemCard';
 import { formatPercent, toPersianDigits } from '../../utils/format';
+import { ActionSheet, Chip, EmptyState, Pressable, ProgressRing } from '../ui';
 
 type PortalFilter = 'all' | 'jobinja' | 'jobvision' | 'remote' | 'tehran';
+type SortKey = 'score' | 'recent' | 'company';
+
+const SORT_LABELS: Record<SortKey, string> = {
+  score: 'بیشترین تطابق',
+  recent: 'جدیدترین',
+  company: 'نام شرکت',
+};
+
+const STATUS_ORDER: JobStatus[] = ['new', 'saved', 'applied', 'interview', 'rejected'];
 
 export const JobsRadarView: React.FC = () => {
-  const { lang, t, setSelectedItem, reloadTrigger, runIranJob, isRunningJob, showToast } = useApp();
+  const { t, setSelectedItem, reloadTrigger, runIranJob, isRunningJob, showToast } = useApp();
   const [allJobs, setAllJobs] = useState<Item[]>([]);
   const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState<JobStatus | 'all'>('all');
   const [portalFilter, setPortalFilter] = useState<PortalFilter>('all');
   const [minScoreFilter, setMinScoreFilter] = useState<number>(0);
+  const [sortKey, setSortKey] = useState<SortKey>('score');
+  const [showSortSheet, setShowSortSheet] = useState(false);
+  const [statusTarget, setStatusTarget] = useState<Item | null>(null);
   const [showEmailModal, setShowEmailModal] = useState(false);
   const [copiedEmail, setCopiedEmail] = useState(false);
 
@@ -60,7 +73,20 @@ export const JobsRadarView: React.FC = () => {
     try {
       await api.patchItem(item.id, { is_archived: !item.is_archived });
       setAllJobs((prev) => prev.filter((i) => i.id !== item.id));
-      showToast('آگهی به آرشیو منتقل شد', 'info');
+      showToast('آگهی به بایگانی منتقل شد', 'info');
+    } catch (err) {
+      showToast((err as Error).message, 'error');
+    }
+  };
+
+  const handleStatusChange = async (status: JobStatus) => {
+    const target = statusTarget;
+    setStatusTarget(null);
+    if (!target) return;
+    try {
+      const updated = await api.patchJobStatus(target.id, status);
+      setAllJobs((prev) => prev.map((i) => (i.id === target.id ? updated : i)));
+      showToast(`وضعیت به «${t[`status_${status}` as keyof typeof t]}» تغییر یافت`, 'success');
     } catch (err) {
       showToast((err as Error).message, 'error');
     }
@@ -83,45 +109,53 @@ export const JobsRadarView: React.FC = () => {
     { id: 'tehran', label: 'تهران', full: 'استان تهران' },
   ];
 
-  let items = allJobs;
-  if (statusFilter !== 'all') {
-    items = items.filter((i) => i.job_meta?.status === statusFilter);
-  }
-  if (minScoreFilter > 0) {
-    items = items.filter((i) => (i.job_meta?.match_score ?? 0) >= minScoreFilter);
-  }
-  if (portalFilter === 'jobinja') {
-    items = items.filter(
-      (i) =>
-        i.source_name.includes('jobinja') ||
-        i.source_url?.includes('jobinja') ||
-        i.job_meta?.source_platform === 'jobinja'
-    );
-  } else if (portalFilter === 'jobvision') {
-    items = items.filter(
-      (i) =>
-        i.source_name.includes('jobvision') ||
-        i.source_url?.includes('jobvision') ||
-        i.job_meta?.source_platform === 'jobvision'
-    );
-  } else if (portalFilter === 'remote') {
-    items = items.filter((i) => i.job_meta?.remote === true);
-  } else if (portalFilter === 'tehran') {
-    items = items.filter(
-      (i) =>
-        i.job_meta?.location.toLowerCase().includes('tehran') ||
-        i.job_meta?.location.includes('تهران')
-    );
-  }
+  const items = useMemo(() => {
+    let list = allJobs;
+
+    if (statusFilter !== 'all') {
+      list = list.filter((i) => i.job_meta?.status === statusFilter);
+    }
+    if (minScoreFilter > 0) {
+      list = list.filter((i) => (i.job_meta?.match_score ?? 0) >= minScoreFilter);
+    }
+    if (portalFilter === 'jobinja') {
+      list = list.filter(
+        (i) =>
+          i.source_name.includes('jobinja') ||
+          i.source_url?.includes('jobinja') ||
+          i.job_meta?.source_platform === 'jobinja'
+      );
+    } else if (portalFilter === 'jobvision') {
+      list = list.filter(
+        (i) =>
+          i.source_name.includes('jobvision') ||
+          i.source_url?.includes('jobvision') ||
+          i.job_meta?.source_platform === 'jobvision'
+      );
+    } else if (portalFilter === 'remote') {
+      list = list.filter((i) => i.job_meta?.remote === true);
+    } else if (portalFilter === 'tehran') {
+      list = list.filter(
+        (i) =>
+          i.job_meta?.location.toLowerCase().includes('tehran') ||
+          i.job_meta?.location.includes('تهران')
+      );
+    }
+
+    const sorted = [...list];
+    if (sortKey === 'score') {
+      sorted.sort((a, b) => (b.job_meta?.match_score ?? 0) - (a.job_meta?.match_score ?? 0));
+    } else if (sortKey === 'recent') {
+      sorted.sort(
+        (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+      );
+    } else {
+      sorted.sort((a, b) => (a.job_meta?.company ?? '').localeCompare(b.job_meta?.company ?? ''));
+    }
+    return sorted;
+  }, [allJobs, statusFilter, minScoreFilter, portalFilter, sortKey]);
 
   const highMatchCount = allJobs.filter((i) => (i.job_meta?.match_score ?? 0) >= 80).length;
-  const iranJobsCount = allJobs.filter(
-    (i) =>
-      i.source_name.includes('jobinja') ||
-      i.source_name.includes('jobvision') ||
-      i.source_url?.includes('jobinja') ||
-      i.source_url?.includes('jobvision')
-  ).length;
   const avgMatch = allJobs.length
     ? Math.round(
         allJobs.reduce((sum, item) => sum + (item.job_meta?.match_score ?? 0), 0) / allJobs.length
@@ -143,11 +177,11 @@ export const JobsRadarView: React.FC = () => {
     'LLM Agents',
   ];
 
-  const userEmail = 'job.msalehi@gmail.com';
+  // Mock preview uses a neutral placeholder — never a real mailbox.
+  const userEmail = 'user@example.com';
 
   const generateEmailReportText = () => {
-    const header = `فرصت‌های شغلی جدید (جابینجا و جاب‌ویژن) - ${new Date().toLocaleDateString('fa-IR')}\n\nمحمدرضا صالحی عزیز،\nبر اساس مهارت‌های شما (پایتون، جنگو، FastAPI، معماری میکروسرویس، PostgreSQL، وب‌اسکرپینگ، ردیس، الستیک، رابیت و سیستم‌های LLM Agents با ۴+ سال سابقه)، آگهی‌های منتخب ۲۴ ساعت گذشته به شرح زیر است:\n\n`;
-
+    const header = `فرصت‌های شغلی جدید (جابینجا و جاب‌ویژن) - ${new Date().toLocaleDateString('fa-IR')}\n\nگزارش روزانه فرصت‌های شغلی متناسب با مهارت‌های ثبت‌شده:\n\n`;
     const jobEntries = items
       .filter((i) => (i.job_meta?.match_score ?? 0) >= 80)
       .slice(0, 5)
@@ -156,236 +190,192 @@ export const JobsRadarView: React.FC = () => {
           `• ${index + 1}. ${j.title} (${j.job_meta?.company})\n• درصد تطابق: ${formatPercent(j.job_meta?.match_score ?? 0)}\n• منبع: ${j.source_name}\n• شرایط همکاری: ${j.job_meta?.location} ${j.job_meta?.remote ? '(دورکاری کامل)' : ''}\n• حقوق: ${j.job_meta?.salary_text || 'توافقی'}\n• نیازمندی‌های اصلی: ${j.job_meta?.requirements?.join('، ') || 'Python, Backend'}\n• تحلیل هوش مصنوعی: ${j.job_meta?.match_reason}\n• لینک آگهی یا جستجوی مشابه: ${j.source_url}\n`
       )
       .join('\n');
-
-    const footer = `\nسیستم خودکار رادار شغلی هوش مصنوعی جمنای\nارسال بعدی: فردا راس ساعت ۰۸:۰۰ صبح`;
+    const footer = `\nرادار شغلی هوش مصنوعی — ارسال بعدی: فردا راس ساعت ۰۸:۰۰`;
     return header + jobEntries + footer;
   };
 
   const handleCopyEmail = () => {
     navigator.clipboard.writeText(generateEmailReportText());
     setCopiedEmail(true);
-    showToast('متن گزارش ایمیل با موفقیت کپی شد', 'success');
+    showToast('متن گزارش ایمیل کپی شد', 'success');
     setTimeout(() => setCopiedEmail(false), 2000);
   };
 
   return (
-    <div className="space-y-4 pb-4">
-      {/* Radar hero */}
-      <section className="px-4">
-        <div className="ios-glass-card ios-specular relative overflow-hidden p-[18px]">
-          <div
-            aria-hidden="true"
-            className="pointer-events-none absolute -top-24 -start-20 h-64 w-64 rounded-full"
-            style={{
-              background:
-                'radial-gradient(circle, rgba(16,185,129,0.36), rgba(6,182,212,0.14) 55%, transparent 72%)',
-              filter: 'blur(26px)',
-            }}
-          />
-          <div
-            aria-hidden="true"
-            className="pointer-events-none absolute -top-10 -end-10 h-44 w-44 rounded-full opacity-60"
-            style={{
-              background:
-                'conic-gradient(from 210deg at 50% 50%, transparent 0deg, rgba(52,211,153,0.25) 60deg, transparent 130deg)',
-              filter: 'blur(18px)',
-            }}
-          />
-
-          <div className="relative z-10">
-            <div className="flex items-start justify-between gap-2">
-              <div className="flex items-center gap-2.5">
-                <span className="flex h-9 w-9 items-center justify-center rounded-2xl border border-emerald-300/25 bg-emerald-400/12 text-emerald-200">
-                  <Radar className="h-4.5 w-4.5" />
-                </span>
-                <div>
-                  <h2 className="text-sm font-bold text-slate-900 dark:text-white">
-                    رادار هوشمند پایتون
-                  </h2>
-                  <p className="text-[10px] text-slate-400">جابینجا و جاب‌ویژن · Gemini</p>
-                </div>
-              </div>
-              <span className="inline-flex items-center gap-1 rounded-full border border-emerald-300/30 bg-emerald-400/12 px-2 py-1 text-[9px] font-bold text-emerald-200">
-                <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-400" />
-                اتوماسیون فعال
-              </span>
-            </div>
-
-            <div className="mt-4 flex items-end justify-between gap-3">
-              <div>
-                <div className="flex items-baseline gap-1">
-                  <div className="metric-number ios-glass-text text-[3rem] font-extrabold leading-none">
-                    {toPersianDigits(avgMatch)}
-                  </div>
-                  <span className="text-xl font-bold text-emerald-600 dark:text-emerald-200/80">٪</span>
-                </div>
-                <p className="mt-1 text-[10.5px] font-medium text-emerald-700 dark:text-emerald-200/80">
-                  میانگین تطابق با پروفایل شما
-                </p>
-              </div>
-              <div className="grid grid-cols-3 gap-1.5">
-                <div className="ios-glass-subtile min-w-[52px] px-2 py-2 text-center">
-                  <div className="text-sm font-extrabold leading-none text-cyan-200">
-                    {toPersianDigits(pipeline.saved)}
-                  </div>
-                  <p className="mt-1 text-[8.5px] text-slate-400">ذخیره</p>
-                </div>
-                <div className="ios-glass-subtile min-w-[52px] px-2 py-2 text-center">
-                  <div className="text-sm font-extrabold leading-none text-sky-200">
-                    {toPersianDigits(pipeline.applied)}
-                  </div>
-                  <p className="mt-1 text-[8.5px] text-slate-400">رزومه</p>
-                </div>
-                <div className="ios-glass-subtile min-w-[52px] px-2 py-2 text-center">
-                  <div className="text-sm font-extrabold leading-none text-emerald-300">
-                    {toPersianDigits(pipeline.interview)}
-                  </div>
-                  <p className="mt-1 text-[8.5px] text-slate-400">مصاحبه</p>
-                </div>
-              </div>
-            </div>
-
-            <div className="no-scrollbar mt-3 flex items-center gap-1.5 overflow-x-auto pb-0.5">
-              {monitoredSkills.map((skill) => (
-                <span
-                  key={skill}
-                  className="shrink-0 rounded-full border border-emerald-300/25 bg-emerald-400/10 px-2.5 py-1 text-[9.5px] font-semibold text-emerald-100 backdrop-blur-md"
-                >
-                  <bdi dir="ltr">{skill}</bdi>
-                </span>
-              ))}
-            </div>
-
-            <div className="mt-4 flex items-center gap-2">
-              <button
-                type="button"
-                onClick={() => runIranJob()}
-                disabled={isRunningJob}
-                className="ios-press flex h-10 flex-1 items-center justify-center gap-2 rounded-full border border-emerald-300/40 bg-gradient-to-r from-emerald-500/80 to-teal-500/70 px-4 text-[11px] font-bold text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.35),0_8px_22px_-8px_rgba(16,185,129,0.7)] disabled:opacity-50"
-              >
-                <Play className={`h-3.5 w-3.5 fill-current ${isRunningJob ? 'animate-spin' : ''}`} />
-                <span>{isRunningJob ? 'در حال اسکن و تحلیل...' : 'اسکن فوری پورتال‌ها'}</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setShowEmailModal(true)}
-                className="ios-action-pill"
-                title="پیش‌نمایش ایمیل روزانه"
-              >
-                <Mail className="h-3.5 w-3.5 text-cyan-300" />
-                <span>ایمیل</span>
-              </button>
-            </div>
-
-            <div className="mt-3 flex items-center justify-between gap-2 border-t border-white/[0.07] pt-2.5 text-[9.5px] text-slate-400">
-              <span className="flex items-center gap-1">
-                <Clock className="h-3 w-3 text-emerald-300" />
-                ارسال روزانه ۰۸:۰۰
-              </span>
-              <span className="flex items-center gap-1 truncate">
-                <Mail className="h-3 w-3 text-cyan-300" />
-                <span className="truncate">{userEmail}</span>
-              </span>
+    <div className="px-4">
+      {/* Radar summary card */}
+      <section className="ios-card p-4">
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex items-center gap-2.5">
+            <span
+              className="inline-flex h-9 w-9 items-center justify-center rounded-[10px]"
+              style={{ background: 'var(--success-soft)', color: 'var(--success)' }}
+              aria-hidden="true"
+            >
+              <Radar className="h-[18px] w-[18px]" strokeWidth={1.75} />
+            </span>
+            <div>
+              <h2 className="text-[15px] font-semibold text-[var(--text-primary)]">
+                رادار هوشمند شغل
+              </h2>
+              <p className="text-[11px] text-[var(--text-secondary)]">
+                جابینجا و جاب‌ویژن · تحلیل هوش مصنوعی
+              </p>
             </div>
           </div>
+          <span className="ios-chip h-[24px] min-h-[24px] px-2 text-[10px]" data-tone="success">
+            فعال
+          </span>
+        </div>
+
+        <div className="mt-4 flex items-center gap-4">
+          <ProgressRing value={avgMatch} size={62} strokeWidth={6} />
+
+          <div className="grid flex-1 grid-cols-3 gap-2">
+            {[
+              { value: pipeline.saved, label: 'ذخیره' },
+              { value: pipeline.applied, label: 'رزومه' },
+              { value: pipeline.interview, label: 'مصاحبه' },
+            ].map((stat) => (
+              <div key={stat.label} className="text-center">
+                <p className="text-[18px] font-bold leading-none text-[var(--text-primary)] tabular">
+                  {toPersianDigits(stat.value)}
+                </p>
+                <p className="mt-1 text-[10px] text-[var(--text-secondary)]">{stat.label}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className="no-scrollbar mt-3 flex items-center gap-1.5 overflow-x-auto pb-1">
+          {monitoredSkills.map((skill) => (
+            <span key={skill} className="ios-chip h-[26px] min-h-[26px] px-2.5 text-[11px]">
+              <bdi dir="ltr">{skill}</bdi>
+            </span>
+          ))}
+        </div>
+
+        <div className="mt-4 flex items-center gap-2">
+          <Pressable
+            onClick={() => runIranJob()}
+            disabled={isRunningJob}
+            className="ios-btn ios-btn-primary h-11 flex-1 text-[14px] disabled:opacity-50"
+          >
+            <Play className={`h-4 w-4 ${isRunningJob ? 'animate-spin' : ''}`} strokeWidth={1.75} />
+            <span>{isRunningJob ? 'در حال اسکن...' : 'اسکن فوری پورتال‌ها'}</span>
+          </Pressable>
+
+          <Pressable
+            onClick={() => setShowEmailModal(true)}
+            className="ios-btn ios-btn-secondary h-11 px-4 text-[14px]"
+            aria-label="پیش‌نمایش ایمیل روزانه"
+          >
+            <Mail className="h-4 w-4" strokeWidth={1.75} />
+            <span>ایمیل</span>
+          </Pressable>
+        </div>
+
+        <div className="mt-3 flex items-center justify-between gap-2 border-t-0.5px border-[var(--separator)] pt-2.5 text-[11px] text-[var(--text-secondary)]">
+          <span className="flex items-center gap-1">
+            <Clock className="h-3 w-3 text-[var(--success)]" strokeWidth={1.75} />
+            ارسال روزانه ۰۸:۰۰
+          </span>
+          <span className="flex items-center gap-1 truncate">
+            <Mail className="h-3 w-3 text-[var(--accent)]" strokeWidth={1.75} />
+            <bdi dir="ltr">{userEmail}</bdi>
+          </span>
         </div>
       </section>
 
-      {/* Portal filter rail */}
-      <div className="no-scrollbar flex items-center gap-2 overflow-x-auto px-4 pb-0.5">
-        {portalOptions.map((opt) => {
-          const isActive = portalFilter === opt.id;
-          return (
-            <button
-              key={opt.id}
-              type="button"
-              onClick={() => setPortalFilter(opt.id)}
-              title={opt.full}
-              className={`ios-press shrink-0 px-3 py-2 text-[11px] font-semibold transition-all ${
-                isActive ? 'ios-glass-pill-active' : 'ios-glass-pill text-slate-300'
-              }`}
-            >
+      {/* Portal filters */}
+      <div className="no-scrollbar snap-x mt-4 flex items-center gap-2 overflow-x-auto pb-1">
+        {portalOptions.map((opt) => (
+          <Pressable
+            key={opt.id}
+            onClick={() => setPortalFilter(opt.id)}
+            className="snap-start shrink-0"
+            title={opt.full}
+            aria-pressed={portalFilter === opt.id}
+          >
+            <span className="ios-chip" data-active={portalFilter === opt.id}>
               {opt.label}
-            </button>
-          );
-        })}
+            </span>
+          </Pressable>
+        ))}
       </div>
 
-      {/* Status + score rail */}
-      <div className="flex flex-wrap items-center justify-between gap-2 px-4">
-        <div className="no-scrollbar flex items-center gap-1.5 overflow-x-auto">
-          {statuses.map((st) => {
-            const isActive = statusFilter === st.id;
-            return (
-              <button
-                key={st.id}
-                type="button"
-                onClick={() => setStatusFilter(st.id)}
-                className={`shrink-0 rounded-full px-2.5 py-1.5 text-[10px] font-semibold transition-all ${
-                  isActive
-                    ? 'border border-white/25 bg-white/90 text-slate-900 shadow-sm dark:border-white/15 dark:bg-white/15 dark:text-white'
-                    : 'border border-white/[0.07] bg-white/[0.045] text-slate-400 backdrop-blur-md hover:text-slate-200'
-                }`}
-              >
-                {st.label}
-              </button>
-            );
-          })}
-        </div>
-
-        <div className="flex items-center gap-1 text-[10px] text-slate-400">
-          <span className="font-medium">حداقل:</span>
-          {[0, 80, 90].map((score) => (
-            <button
-              key={score}
-              type="button"
-              onClick={() => setMinScoreFilter(score)}
-              className={`rounded-full px-2 py-1 font-medium transition-colors ${
-                minScoreFilter === score
-                  ? 'ios-glass-emerald'
-                  : 'border border-white/[0.07] bg-white/[0.045] text-slate-400'
-              }`}
+      {/* Status + score + sort */}
+      <div className="mt-3 flex items-center gap-2">
+        <div className="no-scrollbar flex flex-1 items-center gap-1.5 overflow-x-auto">
+          {statuses.map((st) => (
+            <Pressable
+              key={st.id}
+              onClick={() => setStatusFilter(st.id)}
+              className="shrink-0"
+              aria-pressed={statusFilter === st.id}
             >
-              {score === 0 ? 'همه' : `${toPersianDigits(score)}٪+`}
-            </button>
+              <span className="ios-chip h-[28px] min-h-[28px] text-[11px]" data-active={statusFilter === st.id}>
+                {st.label}
+              </span>
+            </Pressable>
           ))}
         </div>
+
+        <Pressable
+          onClick={() => setShowSortSheet(true)}
+          className="ios-icon-button h-9 w-9 shrink-0"
+          aria-label="مرتب‌سازی"
+        >
+          <ArrowUpDown className="h-4 w-4" strokeWidth={1.75} />
+        </Pressable>
+      </div>
+
+      <div className="mt-3 flex items-center gap-1.5">
+        <span className="text-[11px] text-[var(--text-secondary)]">حداقل امتیاز:</span>
+        {[0, 50, 80].map((score) => (
+          <Chip
+            key={score}
+            active={minScoreFilter === score}
+            onClick={() => setMinScoreFilter(score)}
+            className="h-[26px] min-h-[26px] px-2 text-[11px]"
+          >
+            {score === 0 ? 'همه' : `${toPersianDigits(score)}٪+`}
+          </Chip>
+        ))}
       </div>
 
       {/* Counts */}
-      <div className="flex items-center justify-between px-4 text-[10px] text-slate-400">
+      <div className="mt-4 flex items-center justify-between text-[11px] text-[var(--text-secondary)]">
         <span>{toPersianDigits(items.length)} آگهی در نمای فعلی</span>
-        <span className="text-emerald-300/90">
-          {toPersianDigits(highMatchCount)} تطابق بالای ۸۰٪ · {toPersianDigits(iranJobsCount)} ایرانی
+        <span className="text-[var(--success)]">
+          {toPersianDigits(highMatchCount)} تطابق بالای ۸۰٪
         </span>
       </div>
 
       {/* Jobs list */}
-      <div className="px-4">
+      <div className="mt-2">
         {loading ? (
           <div className="space-y-3">
             {[1, 2, 3, 4].map((n) => (
-              <div key={n} className="ios-glass-card ios-skeleton h-[164px] rounded-[26px]" />
+              <div key={n} className="ios-skeleton h-[190px] rounded-[var(--r-card)]" />
             ))}
           </div>
         ) : items.length === 0 ? (
-          <div className="ios-glass-card ios-specular px-6 py-9 text-center">
-            <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-2xl border border-emerald-300/20 bg-emerald-400/10 text-emerald-300">
-              <Briefcase className="h-6 w-6" />
-            </div>
-            <h3 className="text-sm font-bold text-slate-900 dark:text-white">{t.empty_jobs_title}</h3>
-            <p className="mx-auto mt-1 max-w-xs text-[11px] leading-relaxed text-slate-500 dark:text-slate-400">
-              آگهی منطبق با فیلتر انتخابی یافت نشد. رادار را اجرا کنید تا هوش مصنوعی آگهی‌های جدید را استخراج و تحلیل کند.
-            </p>
-            <button
-              type="button"
-              onClick={() => runIranJob()}
-              className="ios-press mt-4 inline-flex items-center gap-1.5 rounded-full border border-emerald-300/35 bg-emerald-500/20 px-4 py-2 text-[11px] font-bold text-emerald-100"
-            >
-              <Play className="h-3.5 w-3.5 fill-current" />
-              <span>اجرای فوری اسکن</span>
-            </button>
+          <div className="ios-card">
+            <EmptyState
+              icon={<Briefcase className="h-7 w-7" strokeWidth={1.5} />}
+              title={t.empty_jobs_title}
+              description="آگهی منطبق با فیلتر انتخابی یافت نشد. رادار را اجرا کنید تا هوش مصنوعی آگهی‌های جدید را استخراج و تحلیل کند."
+              action={
+                <Pressable
+                  onClick={() => runIranJob()}
+                  className="ios-btn ios-btn-primary h-11 px-5 text-[15px]"
+                >
+                  <Play className="h-4 w-4" strokeWidth={1.75} />
+                  <span>اجرای فوری اسکن</span>
+                </Pressable>
+              }
+            />
           </div>
         ) : (
           items.map((item) => (
@@ -395,122 +385,158 @@ export const JobsRadarView: React.FC = () => {
               onFavoriteToggle={handleFavoriteToggle}
               onArchiveToggle={handleArchiveToggle}
               onSelect={setSelectedItem}
+              onStatusChange={(target) => setStatusTarget(target)}
             />
           ))
         )}
       </div>
 
+      {/* Sort action sheet */}
+      <ActionSheet
+        open={showSortSheet}
+        onClose={() => setShowSortSheet(false)}
+        title="مرتب‌سازی بر اساس"
+        options={(Object.keys(SORT_LABELS) as SortKey[]).map((key) => ({
+          id: key,
+          label: SORT_LABELS[key],
+          selected: sortKey === key,
+        }))}
+        onSelect={(id) => {
+          setSortKey(id as SortKey);
+          setShowSortSheet(false);
+        }}
+      />
+
+      {/* Job status action sheet */}
+      <ActionSheet
+        open={Boolean(statusTarget)}
+        onClose={() => setStatusTarget(null)}
+        title="وضعیت درخواست"
+        message={statusTarget?.title}
+        options={STATUS_ORDER.map((status) => ({
+          id: status,
+          label: t[`status_${status}` as keyof typeof t],
+          selected: statusTarget?.job_meta?.status === status,
+        }))}
+        onSelect={(id) => handleStatusChange(id as JobStatus)}
+      />
+
       {/* Email preview bottom sheet */}
       {showEmailModal && (
-        <div className="fixed inset-0 z-[60] flex items-end justify-center">
-          <div
-            className="absolute inset-0 bg-slate-950/55 backdrop-blur-md"
-            onClick={() => setShowEmailModal(false)}
-          />
+        <div className="fixed inset-0 z-[70] flex items-end justify-center" dir="rtl">
+          <div className="absolute inset-0 bg-black/45" onClick={() => setShowEmailModal(false)} />
 
-          <div
-            className="ios-glass-sheet relative flex max-h-[88dvh] w-full max-w-[430px] flex-col overflow-hidden rounded-t-[38px]"
-            dir="rtl"
+          <motion.div
+            initial={{ y: '100%' }}
+            animate={{ y: 0 }}
+            exit={{ y: '100%' }}
+            className="relative flex max-h-[88dvh] w-full max-w-[430px] flex-col overflow-hidden rounded-t-[24px] ios-sheet"
           >
-            <div className="ios-grabber shrink-0" />
+            <div className="ios-sheet-handle" />
 
-            <div className="flex items-center justify-between border-b border-white/[0.08] px-5 pb-3">
-              <div className="flex items-center gap-2.5">
-                <div className="flex h-9 w-9 items-center justify-center rounded-2xl border border-cyan-300/25 bg-cyan-400/12 text-cyan-200">
-                  <Mail className="h-4 w-4" />
-                </div>
-                <div>
-                  <h3 className="text-sm font-bold text-slate-900 dark:text-white">پیش‌نمایش ایمیل روزانه</h3>
-                  <p className="text-[10px] text-slate-500 dark:text-slate-400">
-                    گیرنده: <span className="font-mono text-cyan-300">{userEmail}</span>
+            <div className="flex items-center justify-between gap-2 border-b-0.5px border-[var(--separator)] px-4 pb-3 pt-3">
+              <div className="flex min-w-0 items-center gap-2.5">
+                <span
+                  className="inline-flex h-9 w-9 items-center justify-center rounded-[10px]"
+                  style={{ background: 'var(--accent-soft)', color: 'var(--accent)' }}
+                  aria-hidden="true"
+                >
+                  <Mail className="h-[18px] w-[18px]" strokeWidth={1.75} />
+                </span>
+                <div className="min-w-0">
+                  <h3 className="text-[15px] font-semibold text-[var(--text-primary)]">
+                    پیش‌نمایش ایمیل روزانه
+                  </h3>
+                  <p className="text-[11px] text-[var(--text-secondary)]">
+                    گیرنده: <bdi dir="ltr">{userEmail}</bdi>
                   </p>
                 </div>
               </div>
 
               <div className="flex items-center gap-1.5">
-                <button
-                  type="button"
+                <Pressable
                   onClick={handleCopyEmail}
-                  className="ios-glass-pill flex items-center gap-1.5 px-2.5 py-1.5 text-[10px] font-semibold text-slate-200"
+                  className="ios-btn ios-btn-secondary h-9 min-h-9 px-3 text-[12px]"
                 >
-                  {copiedEmail ? <Check className="h-3.5 w-3.5 text-emerald-400" /> : <Copy className="h-3.5 w-3.5" />}
+                  {copiedEmail ? (
+                    <Check className="h-3.5 w-3.5" strokeWidth={1.75} />
+                  ) : (
+                    <Copy className="h-3.5 w-3.5" strokeWidth={1.75} />
+                  )}
                   <span>{copiedEmail ? 'کپی شد' : 'کپی'}</span>
-                </button>
-                <button
-                  type="button"
+                </Pressable>
+                <Pressable
                   onClick={() => setShowEmailModal(false)}
-                  className="ios-icon-button h-8 w-8"
+                  className="ios-icon-button h-9 w-9"
+                  aria-label="بستن"
                 >
-                  <X className="h-4 w-4" />
-                </button>
+                  <X className="h-4 w-4" strokeWidth={1.75} />
+                </Pressable>
               </div>
             </div>
 
-            <div className="no-scrollbar space-y-4 overflow-y-auto p-5 text-xs leading-relaxed text-slate-700 dark:text-slate-200">
-              <div className="flex items-center gap-2 rounded-2xl border border-emerald-300/20 bg-emerald-400/10 p-3 text-[10.5px] text-emerald-200">
-                <CheckCircle2 className="h-4 w-4 shrink-0" />
-                <span>این گزارش هر روز راس ساعت ۰۸:۰۰ صبح با جمنای تولید و به ایمیل شما ارسال می‌شود.</span>
+            <div className="no-scrollbar space-y-4 overflow-y-auto p-4 text-[13px] leading-[1.8] text-[var(--text-secondary)]">
+              <div
+                className="flex items-start gap-2 rounded-[var(--r-control)] p-3 text-[12px]"
+                style={{ background: 'var(--success-soft)', color: 'var(--success)' }}
+              >
+                <CheckCircle2 className="h-4 w-4 shrink-0" strokeWidth={1.75} />
+                <span>این گزارش هر روز راس ساعت ۰۸:۰۰ صبح تولید و ارسال می‌شود.</span>
               </div>
 
-              <div className="ios-glass-subtile space-y-2 p-3.5 text-[10.5px]">
-                <div className="flex items-center justify-between">
-                  <span className="text-slate-400">گیرنده:</span>
-                  <span className="font-semibold text-cyan-300">{userEmail}</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-slate-400">فرستنده:</span>
-                  <span className="font-semibold text-slate-300">رادار شغلی هوش مصنوعی</span>
-                </div>
+              <div className="ios-card p-3">
                 <div className="flex items-center justify-between gap-3">
-                  <span className="shrink-0 text-slate-400">موضوع:</span>
-                  <span className="truncate font-semibold text-slate-900 dark:text-white">
-                    گزارش روزانه موقعیت‌های پایتون و جنگو
-                  </span>
+                  <span className="text-[var(--text-secondary)]">گیرنده:</span>
+                  <bdi dir="ltr" className="font-medium text-[var(--accent)]">
+                    {userEmail}
+                  </bdi>
+                </div>
+                <div className="mt-2 flex items-center justify-between gap-3">
+                  <span className="text-[var(--text-secondary)]">فرستنده:</span>
+                  <span className="font-medium text-[var(--text-primary)]">رادار شغلی هوش مصنوعی</span>
                 </div>
               </div>
 
               <div className="space-y-2.5">
-                <h4 className="text-[11px] font-bold text-slate-500 dark:text-slate-300">
-                  موقعیت‌های استخراج‌شده ({toPersianDigits(items.filter((i) => (i.job_meta?.match_score ?? 0) >= 80).length)}):
+                <h4 className="text-[13px] font-semibold text-[var(--text-primary)]">
+                  موقعیت‌های استخراج‌شده (
+                  {toPersianDigits(items.filter((i) => (i.job_meta?.match_score ?? 0) >= 80).length)})
                 </h4>
 
                 {items
                   .filter((i) => (i.job_meta?.match_score ?? 0) >= 80)
                   .slice(0, 4)
                   .map((job, idx) => (
-                    <div key={job.id} className="ios-glass-subtile space-y-2 p-3.5">
+                    <div key={job.id} className="ios-card p-3">
                       <div className="flex items-start justify-between gap-2">
                         <div className="min-w-0">
-                          <span className="block truncate text-[11px] font-bold text-cyan-200">
+                          <span className="block truncate text-[13px] font-semibold text-[var(--text-primary)]">
                             {toPersianDigits(idx + 1)}. {job.title}
                           </span>
-                          <span className="mt-0.5 block text-[10px] text-slate-400">
+                          <span className="mt-0.5 block text-[11px] text-[var(--text-secondary)]">
                             {job.job_meta?.company} · {job.source_name}
                           </span>
                         </div>
-                        <span className="ios-glass-emerald shrink-0 rounded-full px-2 py-0.5 text-[10px] font-bold">
+                        <span className="ios-chip h-[24px] min-h-[24px] shrink-0 px-2 text-[11px]" data-tone="success">
                           {toPersianDigits(job.job_meta?.match_score || 0)}٪
                         </span>
                       </div>
 
-                      <p className="line-clamp-2 text-[10.5px] leading-relaxed text-slate-600 dark:text-slate-300">
+                      <p className="mt-2 line-clamp-2 text-[12px] leading-[1.7]">
                         {job.job_meta?.match_reason}
                       </p>
 
-                      <div className="flex flex-wrap items-center justify-between gap-2 border-t border-white/[0.07] pt-2 text-[9.5px]">
-                        <div className="flex items-center gap-1.5 text-slate-400">
-                          <span>{job.job_meta?.location}</span>
-                          {job.job_meta?.remote && <span className="font-semibold text-emerald-300">(دورکاری)</span>}
-                        </div>
+                      <div className="mt-2 flex items-center justify-between gap-2 border-t-0.5px border-[var(--separator)] pt-2 text-[11px]">
+                        <span className="truncate">{job.job_meta?.location}</span>
                         {job.source_url && (
                           <a
                             href={job.source_url}
                             target="_blank"
                             rel="noreferrer"
-                            className="flex items-center gap-1 font-semibold text-cyan-300"
+                            className="flex shrink-0 items-center gap-1 font-medium text-[var(--accent)]"
                           >
                             <span>منبع</span>
-                            <ExternalLink className="h-3 w-3" />
+                            <ExternalLink className="h-3 w-3" strokeWidth={1.75} />
                           </a>
                         )}
                       </div>
@@ -519,19 +545,18 @@ export const JobsRadarView: React.FC = () => {
               </div>
             </div>
 
-            <div className="flex items-center justify-between border-t border-white/[0.08] px-5 pb-safe pt-3 text-[10px]">
-              <span className="text-slate-400">
-                وضعیت: <span className="font-bold text-emerald-300">ارسال موفق</span>
+            <div className="flex items-center justify-between gap-2 border-t-0.5px border-[var(--separator)] px-4 pb-safe pt-3 text-[11px]">
+              <span className="text-[var(--text-secondary)]">
+                وضعیت: <span className="font-semibold text-[var(--success)]">ارسال موفق</span>
               </span>
-              <button
-                type="button"
+              <Pressable
                 onClick={() => setShowEmailModal(false)}
-                className="ios-press rounded-full border border-slate-300/60 bg-slate-900/[0.06] px-4 py-2 text-[11px] font-bold text-slate-900 dark:border-white/15 dark:bg-white/10 dark:text-white"
+                className="ios-btn ios-btn-secondary h-10 min-h-10 px-4 text-[13px]"
               >
                 بستن
-              </button>
+              </Pressable>
             </div>
-          </div>
+          </motion.div>
         </div>
       )}
     </div>

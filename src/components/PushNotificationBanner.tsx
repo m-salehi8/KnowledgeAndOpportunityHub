@@ -3,6 +3,7 @@ import { BellRing, Check, AlertCircle } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { requestPushPermission } from '../utils/pwa';
 import { api } from '../api/client';
+import { Pressable } from './ui';
 
 export const PushNotificationBanner: React.FC = () => {
   const { lang, t, showToast } = useApp();
@@ -62,38 +63,44 @@ export const PushNotificationBanner: React.FC = () => {
 
   if (permission === 'granted') {
     return (
-      <div className="ios-glass-card flex items-center justify-between gap-3 p-3.5">
-        <div className="flex min-w-0 items-center gap-2.5">
-          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border border-emerald-300/25 bg-emerald-400/12 text-emerald-200">
-            <Check className="h-4 w-4" />
-          </div>
-          <div className="min-w-0">
-            <h4 className="text-[10.5px] font-bold text-slate-900 dark:text-white">اعلان‌های وب‌پوش فعال است</h4>
-            <p className="truncate text-[9.5px] text-slate-500 dark:text-slate-400">
+      <div className="ios-list mb-4 overflow-hidden">
+        <div className="ios-list-row">
+          <span
+            className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-[10px]"
+            style={{ background: 'var(--success-soft)', color: 'var(--success)' }}
+            aria-hidden="true"
+          >
+            <Check className="h-[18px] w-[18px]" strokeWidth={1.75} />
+          </span>
+          <div className="min-w-0 flex-1">
+            <p className="ios-row-title truncate">اعلان‌های وب‌پوش فعال است</p>
+            <p className="ios-row-subtitle truncate">
               رادار شغل، دایجست و ابزارهای تلگرام روی گوشی ارسال می‌شوند.
             </p>
           </div>
+          <Pressable
+            onClick={handleTestPush}
+            className="ios-btn ios-btn-secondary h-9 min-h-9 shrink-0 px-3 text-[12px]"
+          >
+            {t.test_push}
+          </Pressable>
         </div>
-        <button
-          type="button"
-          onClick={handleTestPush}
-          className="ios-glass-pill shrink-0 px-2.5 py-1.5 text-[9.5px] font-bold text-emerald-100"
-        >
-          {t.test_push}
-        </button>
       </div>
     );
   }
 
   if (permission === 'denied') {
     return (
-      <div className="ios-glass-card flex items-start gap-2.5 border-rose-300/20 p-3.5">
-        <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-rose-300" />
+      <div
+        className="mb-4 flex items-start gap-2.5 rounded-[var(--r-card)] p-3.5"
+        style={{ background: 'var(--danger-soft)' }}
+      >
+        <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-[var(--danger)]" strokeWidth={1.75} />
         <div>
-          <h4 className="mb-0.5 text-[10.5px] font-bold text-slate-900 dark:text-white">
+          <p className="text-[13px] font-semibold text-[var(--text-primary)]">
             {lang === 'fa' ? 'دسترسی اعلان‌ها مسدود است' : 'Notifications Blocked'}
-          </h4>
-          <p className="text-[9.5px] leading-snug text-slate-500 dark:text-slate-300">
+          </p>
+          <p className="mt-0.5 text-[12px] leading-[1.7] text-[var(--text-secondary)]">
             {lang === 'fa'
               ? 'در تنظیمات آیفون > Safari یا تنظیمات نوتیفیکیشن سایت، اجازه ارسال اعلان را فعال کنید.'
               : 'In iOS Settings > Safari / Notifications, allow notifications for this app.'}
@@ -104,24 +111,27 @@ export const PushNotificationBanner: React.FC = () => {
   }
 
   return (
-    <div className="ios-glass-card ios-specular flex items-center justify-between gap-3 p-3.5">
-      <div className="flex min-w-0 items-center gap-2.5">
-        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl border border-cyan-300/25 bg-cyan-400/12 text-cyan-200">
-          <BellRing className="h-4 w-4" />
+    <div className="ios-list mb-4 overflow-hidden">
+      <div className="ios-list-row">
+        <span
+          className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-[10px]"
+          style={{ background: 'var(--accent-soft)', color: 'var(--accent)' }}
+          aria-hidden="true"
+        >
+          <BellRing className="h-[18px] w-[18px]" strokeWidth={1.75} />
+        </span>
+        <div className="min-w-0 flex-1">
+          <p className="ios-row-title truncate">{t.push_title}</p>
+          <p className="ios-row-subtitle line-clamp-1">{t.push_desc}</p>
         </div>
-        <div className="min-w-0">
-          <h4 className="text-[10.5px] font-bold text-slate-900 dark:text-white">{t.push_title}</h4>
-          <p className="line-clamp-1 text-[9.5px] text-slate-500 dark:text-slate-300">{t.push_desc}</p>
-        </div>
+        <Pressable
+          onClick={handleEnablePush}
+          disabled={isSubscribing}
+          className="ios-btn ios-btn-primary h-9 min-h-9 shrink-0 px-3 text-[12px] disabled:opacity-50"
+        >
+          {isSubscribing ? '...' : t.enable_push}
+        </Pressable>
       </div>
-      <button
-        type="button"
-        onClick={handleEnablePush}
-        disabled={isSubscribing}
-        className="ios-press shrink-0 rounded-full border border-cyan-300/35 bg-cyan-400/20 px-3 py-2 text-[10px] font-bold text-cyan-50 shadow-[inset_0_1px_0_rgba(255,255,255,0.3)] disabled:opacity-50"
-      >
-        {isSubscribing ? '...' : t.enable_push}
-      </button>
     </div>
   );
 };

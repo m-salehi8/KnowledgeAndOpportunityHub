@@ -1,120 +1,44 @@
-import React, { useEffect, useLayoutEffect, useState } from 'react';
+import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { AppProvider, useApp, TabType } from './context/AppContext';
 import { Header } from './components/Header';
 import { TabBar } from './components/TabBar';
 import { ItemDetailModal } from './components/ItemDetailModal';
 import { InboxView } from './components/views/InboxView';
 import { JobsRadarView } from './components/views/JobsRadarView';
-import { ProductHuntView } from './components/views/ProductHuntView';
-import { ProjectsView } from './components/views/ProjectsView';
 import { SearchView } from './components/views/SearchView';
 import { SavedView } from './components/views/SavedView';
 import { SettingsView } from './components/views/SettingsView';
-import { CheckCircle2, AlertTriangle, AlertCircle, Info } from 'lucide-react';
-import { motion, AnimatePresence } from 'motion/react';
-
-const ORB_GRADIENTS: Record<TabType, string> = {
-  inbox:
-    'radial-gradient(circle at 40% 35%, rgba(236,72,153,0.52), rgba(99,102,241,0.2) 55%, transparent 72%)',
-  jobs: 'radial-gradient(circle at 40% 35%, rgba(16,185,129,0.5), rgba(6,182,212,0.18) 55%, transparent 72%)',
-  producthunt:
-    'radial-gradient(circle at 40% 35%, rgba(218,85,47,0.46), rgba(244,114,182,0.16) 55%, transparent 72%)',
-  projects:
-    'radial-gradient(circle at 40% 35%, rgba(56,189,248,0.46), rgba(99,102,241,0.2) 55%, transparent 72%)',
-  search:
-    'radial-gradient(circle at 40% 35%, rgba(139,92,246,0.46), rgba(34,211,238,0.16) 55%, transparent 72%)',
-  saved:
-    'radial-gradient(circle at 40% 35%, rgba(251,191,36,0.4), rgba(236,72,153,0.14) 55%, transparent 72%)',
-  settings:
-    'radial-gradient(circle at 40% 35%, rgba(100,116,139,0.4), rgba(56,189,248,0.12) 55%, transparent 72%)',
-};
-
-const RefractionFilter: React.FC = () => (
-  <svg width="0" height="0" style={{ position: 'absolute', pointerEvents: 'none' }} aria-hidden="true">
-    <defs>
-      <filter id="ios-liquid-glass" x="-10%" y="-10%" width="120%" height="120%" filterUnits="objectBoundingBox">
-        <feTurbulence type="fractalNoise" baseFrequency="0.015 0.015" numOctaves="1" seed="7" result="noise" />
-        <feGaussianBlur in="noise" stdDeviation="2.5" result="softNoise" />
-        <feDisplacementMap in="SourceGraphic" in2="softNoise" scale="12" xChannelSelector="R" yChannelSelector="G" />
-      </filter>
-    </defs>
-  </svg>
-);
-
-const AmbientBackground: React.FC<{ tab: TabType }> = ({ tab }) => (
-  <div className="app-ambient" aria-hidden="true">
-    <AnimatePresence mode="sync">
-      <motion.div
-        key={tab}
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 0.34 }}
-        exit={{ opacity: 0 }}
-        transition={{ duration: 0.8, ease: 'easeOut' }}
-        className="ambient-orb"
-        style={{
-          top: '-110px',
-          right: '-80px',
-          width: 330,
-          height: 330,
-          background: ORB_GRADIENTS[tab],
-        }}
-      />
-    </AnimatePresence>
-
-    <div
-      className="ambient-orb orb-a"
-      style={{
-        top: '34%',
-        left: '-130px',
-        width: 300,
-        height: 300,
-        background:
-          'radial-gradient(circle, rgba(6,182,212,0.34), rgba(14,116,144,0.08) 60%, transparent 72%)',
-      }}
-    />
-    <div
-      className="ambient-orb orb-b"
-      style={{
-        bottom: '12%',
-        right: '-90px',
-        width: 280,
-        height: 280,
-        background:
-          'radial-gradient(circle, rgba(34,211,238,0.24), rgba(99,102,241,0.12) 58%, transparent 72%)',
-      }}
-    />
-    <div
-      className="absolute inset-x-0 bottom-0 h-56"
-      style={{
-        background:
-          'radial-gradient(ellipse at 50% 100%, rgba(34,211,238,0.22), transparent 68%)',
-        filter: 'blur(46px)',
-      }}
-    />
-  </div>
-);
+import { CheckCircle2, AlertTriangle, AlertCircle, Info, Sparkles } from 'lucide-react';
+import { motion, AnimatePresence, useReducedMotion } from 'motion/react';
 
 const ToastStack: React.FC = () => {
   const { toasts } = useApp();
 
   return (
-    <div className="fixed top-0 left-1/2 z-[70] flex w-full max-w-[430px] -translate-x-1/2 flex-col items-center gap-2 px-4 pt-safe pointer-events-none">
+    <div className="pointer-events-none fixed inset-x-0 top-0 z-[90] mx-auto flex w-full max-w-[430px] flex-col items-center gap-2 px-4 pt-safe">
       <AnimatePresence>
         {toasts.map((toast) => (
           <motion.div
             key={toast.id}
-            initial={{ opacity: 0, y: -18, scale: 0.95 }}
+            initial={{ opacity: 0, y: -16, scale: 0.96 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: -10, scale: 0.96 }}
-            transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
-            className="ios-glass-card pointer-events-auto flex w-full max-w-sm items-center gap-2.5 px-4 py-3 text-[11px] font-medium text-slate-900 dark:text-white"
-            style={{ borderRadius: 22 }}
+            exit={{ opacity: 0, y: -10, scale: 0.97 }}
+            transition={{ type: 'spring', stiffness: 380, damping: 32 }}
+            className="ios-glass pointer-events-auto flex w-full max-w-sm items-center gap-2.5 rounded-[16px] px-4 py-3 text-[13px] font-medium text-[var(--text-primary)]"
           >
-            {toast.type === 'success' && <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-500" />}
-            {toast.type === 'error' && <AlertCircle className="w-4 h-4 shrink-0 text-rose-500" />}
-            {toast.type === 'warning' && <AlertTriangle className="w-4 h-4 shrink-0 text-amber-500" />}
-            {toast.type === 'info' && <Info className="w-4 h-4 shrink-0 text-cyan-500" />}
-            <span className="leading-snug">{toast.text}</span>
+            {toast.type === 'success' && (
+              <CheckCircle2 className="h-4 w-4 shrink-0 text-[var(--success)]" strokeWidth={1.75} />
+            )}
+            {toast.type === 'error' && (
+              <AlertCircle className="h-4 w-4 shrink-0 text-[var(--danger)]" strokeWidth={1.75} />
+            )}
+            {toast.type === 'warning' && (
+              <AlertTriangle className="h-4 w-4 shrink-0 text-[var(--warning)]" strokeWidth={1.75} />
+            )}
+            {toast.type === 'info' && (
+              <Info className="h-4 w-4 shrink-0 text-[var(--accent)]" strokeWidth={1.75} />
+            )}
+            <span className="leading-[1.6]">{toast.text}</span>
           </motion.div>
         ))}
       </AnimatePresence>
@@ -122,9 +46,43 @@ const ToastStack: React.FC = () => {
   );
 };
 
+const Splash: React.FC<{ visible: boolean }> = ({ visible }) => (
+  <AnimatePresence>
+    {visible && (
+      <motion.div
+        className="ios-splash"
+        initial={{ opacity: 1 }}
+        exit={{ opacity: 0, scale: 1.02 }}
+        transition={{ duration: 0.32, ease: [0.32, 0.72, 0, 1] }}
+      >
+        <motion.div
+          className="ios-splash-mark"
+          initial={{ opacity: 0, scale: 0.85 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ type: 'spring', stiffness: 380, damping: 26 }}
+        >
+          <Sparkles className="h-9 w-9 text-white" strokeWidth={1.75} />
+        </motion.div>
+        <p className="ios-splash-title">هاب دانش و فرصت‌ها</p>
+      </motion.div>
+    )}
+  </AnimatePresence>
+);
+
 const AppContent: React.FC = () => {
-  const { activeTab, selectedItem, setSelectedItem, triggerReload, theme } = useApp();
+  const { activeTab, selectedItem, setSelectedItem, triggerReload } = useApp();
   const [screenOrigin, setScreenOrigin] = useState('center center');
+  const [splashVisible, setSplashVisible] = useState(true);
+  const [direction, setDirection] = useState(1);
+  const previousTab = useRef<TabType>(activeTab);
+  const reduce = useReducedMotion();
+
+  const TAB_ORDER: TabType[] = ['inbox', 'jobs', 'search', 'saved', 'settings'];
+
+  useEffect(() => {
+    const timer = setTimeout(() => setSplashVisible(false), 620);
+    return () => clearTimeout(timer);
+  }, []);
 
   const renderActiveView = () => {
     switch (activeTab) {
@@ -132,10 +90,6 @@ const AppContent: React.FC = () => {
         return <InboxView />;
       case 'jobs':
         return <JobsRadarView />;
-      case 'producthunt':
-        return <ProductHuntView />;
-      case 'projects':
-        return <ProjectsView />;
       case 'search':
         return <SearchView />;
       case 'saved':
@@ -148,15 +102,12 @@ const AppContent: React.FC = () => {
   };
 
   useEffect(() => {
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    const from = TAB_ORDER.indexOf(previousTab.current);
+    const to = TAB_ORDER.indexOf(activeTab);
+    setDirection(to >= from ? 1 : -1);
+    previousTab.current = activeTab;
+    window.scrollTo({ top: 0, behavior: 'auto' });
   }, [activeTab]);
-
-  useEffect(() => {
-    const meta = document.querySelector('meta[name="theme-color"]');
-    if (meta) {
-      meta.setAttribute('content', theme === 'dark' ? '#03070E' : '#EAF0F9');
-    }
-  }, [theme]);
 
   useLayoutEffect(() => {
     if (selectedItem) {
@@ -173,25 +124,39 @@ const AppContent: React.FC = () => {
 
   return (
     <div className="app-viewport">
-      <RefractionFilter />
-      <AmbientBackground tab={activeTab} />
+      <div className="app-bg" aria-hidden="true" />
       <ToastStack />
+      <Splash visible={splashVisible} />
 
       <div className="app-frame">
         <div
           className="app-screen"
           style={{
-            transform: selectedItem ? 'translateY(7px) scale(0.955)' : 'none',
-            borderRadius: selectedItem ? 36 : 0,
+            transform: selectedItem ? 'translateY(8px) scale(0.96)' : 'none',
+            borderRadius: selectedItem ? 28 : 0,
             transformOrigin: screenOrigin,
             overflow: selectedItem ? 'hidden' : 'visible',
             transition:
-              'transform 0.42s cubic-bezier(0.32, 0.72, 0, 1), border-radius 0.42s cubic-bezier(0.32, 0.72, 0, 1)',
+              'transform 0.32s cubic-bezier(0.32, 0.72, 0, 1), border-radius 0.32s cubic-bezier(0.32, 0.72, 0, 1)',
           }}
         >
           <Header />
 
-          <main className="relative z-10 w-full pt-1 scroll-pad">{renderActiveView()}</main>
+          <main
+            className="scroll-pad relative z-10 w-full pt-1"
+          >
+            <AnimatePresence mode="wait" initial={false}>
+              <motion.div
+                key={activeTab}
+                initial={reduce ? { opacity: 0 } : { opacity: 0, x: direction * 12 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={reduce ? { opacity: 0 } : { opacity: 0, x: direction * -12 }}
+                transition={{ duration: 0.24, ease: [0.32, 0.72, 0, 1] }}
+              >
+                {renderActiveView()}
+              </motion.div>
+            </AnimatePresence>
+          </main>
         </div>
 
         <TabBar detailOpen={Boolean(selectedItem)} />
