@@ -1,0 +1,1170 @@
+@import "tailwindcss" source(none);
+@source "../src";
+@import "./hub/styles/tokens.css";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* =====================================================================
+   Self-hosted Vazirmatn
+   ===================================================================== */
+@font-face {
+  font-family: 'Vazirmatn';
+  src: url('/fonts/Vazirmatn-Regular.woff2') format('woff2');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Vazirmatn';
+  src: url('/fonts/Vazirmatn-Medium.woff2') format('woff2');
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Vazirmatn';
+  src: url('/fonts/Vazirmatn-SemiBold.woff2') format('woff2');
+  font-weight: 600;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Vazirmatn';
+  src: url('/fonts/Vazirmatn-Bold.woff2') format('woff2');
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+@layer base {
+  html {
+    font-family: var(--font-sans);
+    -webkit-tap-highlight-color: transparent;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-size-adjust: 100%;
+    background: var(--bg-base);
+    scroll-behavior: smooth;
+  }
+
+  body {
+    margin: 0;
+    min-height: 100dvh;
+    background: var(--bg-base);
+    color: var(--text-primary);
+    touch-action: manipulation;
+    overscroll-behavior-y: none;
+    overflow-x: hidden;
+    -webkit-touch-callout: none;
+    transition: background-color var(--dur-med) var(--ease-standard),
+      color var(--dur-med) var(--ease-standard);
+  }
+
+  /* UI chrome is not selectable; running text stays selectable */
+  button,
+  [role='button'],
+  nav,
+  header,
+  label,
+  .ios-press,
+  .ios-tab-bar,
+  .ios-seg,
+  .ios-chip {
+    -webkit-tap-highlight-color: transparent;
+    -webkit-touch-callout: none;
+    user-select: none;
+    -webkit-user-select: none;
+  }
+
+  p,
+  h1,
+  h2,
+  h3,
+  h4,
+  li,
+  article,
+  .ios-selectable {
+    user-select: text;
+    -webkit-user-select: text;
+  }
+
+  input,
+  textarea,
+  select {
+    font-family: inherit;
+    font-size: 16px; /* prevents iOS zoom on focus */
+  }
+
+  ::selection {
+    background: var(--accent-soft);
+    color: inherit;
+  }
+
+  :focus-visible {
+    outline: none;
+    box-shadow: var(--focus-ring);
+  }
+
+  /* Numerals stay aligned in tables / metric rows */
+  .metric-number,
+  .tabular {
+    font-variant-numeric: tabular-nums;
+    font-feature-settings: 'tnum' 1;
+  }
+}
+
+/* =====================================================================
+   App shell
+   ===================================================================== */
+.app-viewport {
+  min-height: 100dvh;
+  background: var(--bg-base);
+  transition: background-color var(--dur-med) var(--ease-standard);
+}
+
+.app-frame {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  max-width: 430px;
+  min-height: 100dvh;
+  margin: 0 auto;
+  overflow-x: hidden;
+  isolation: isolate;
+  background: transparent;
+}
+
+@media (min-width: 500px) {
+  .app-frame {
+    border-inline: 1px solid var(--glass-border-strong);
+    box-shadow: 0 0 120px rgba(0, 0, 0, 0.6);
+  }
+}
+
+.app-screen {
+  position: relative;
+  min-height: 100dvh;
+  transform-origin: center center;
+}
+
+.app-bg {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+  pointer-events: none;
+  background: var(--bg-base);
+  transition: background var(--dur-med) var(--ease-standard);
+}
+
+/* Ambient light the glass refracts: soft colour orbs that drift slowly */
+.app-bg::before,
+.app-bg::after {
+  content: '';
+  position: absolute;
+  inset: -20%;
+  will-change: transform;
+}
+
+.app-bg::before {
+  background:
+    radial-gradient(38% 28% at 82% 8%, var(--orb-1) 0%, transparent 70%),
+    radial-gradient(40% 30% at 8% 34%, var(--orb-2) 0%, transparent 70%),
+    radial-gradient(42% 30% at 90% 70%, var(--orb-3) 0%, transparent 70%);
+  animation: orb-drift-a 26s ease-in-out infinite alternate;
+}
+
+.app-bg::after {
+  background:
+    radial-gradient(36% 26% at 20% 92%, var(--orb-4) 0%, transparent 70%),
+    radial-gradient(34% 24% at 55% 48%, var(--orb-2) 0%, transparent 72%);
+  opacity: 0.7;
+  animation: orb-drift-b 34s ease-in-out infinite alternate;
+}
+
+@keyframes orb-drift-a {
+  from { transform: translate3d(-3%, -2%, 0) scale(1); }
+  to { transform: translate3d(4%, 3%, 0) scale(1.08); }
+}
+
+@keyframes orb-drift-b {
+  from { transform: translate3d(3%, 2%, 0) scale(1.05); }
+  to { transform: translate3d(-4%, -3%, 0) scale(0.98); }
+}
+
+/* =====================================================================
+   Safe areas
+   ===================================================================== */
+.pt-safe {
+  padding-top: max(env(safe-area-inset-top, 0px), 20px);
+}
+
+.pb-safe {
+  padding-bottom: max(env(safe-area-inset-bottom, 0px), 16px);
+}
+
+.scroll-pad {
+  padding-bottom: calc(112px + env(safe-area-inset-bottom, 0px));
+}
+
+/* =====================================================================
+   Navigation bar / large title
+   ===================================================================== */
+.ios-nav-bar {
+  position: sticky;
+  top: 0;
+  z-index: 40;
+  background: transparent;
+  border-bottom: 0.5px solid transparent;
+  transition: background var(--dur-med) var(--ease-standard),
+    border-color var(--dur-med) var(--ease-standard);
+}
+
+.ios-nav-bar.is-scrolled {
+  background: var(--nav-bar-bg);
+  backdrop-filter: var(--glass-blur);
+  border-bottom-color: var(--glass-border);
+  box-shadow: 0 8px 24px -16px rgba(0, 0, 0, 0.5);
+}
+
+.ios-large-title {
+  color: var(--text-primary);
+  font-size: var(--fs-large-title);
+  line-height: 1.16;
+  font-weight: var(--fw-bold);
+  letter-spacing: -0.01em;
+}
+
+.ios-inline-title {
+  color: var(--text-primary);
+  font-size: var(--fs-headline);
+  line-height: 1.3;
+  font-weight: var(--fw-semibold);
+}
+
+.ios-eyebrow {
+  color: var(--text-tertiary);
+  font-size: var(--fs-caption-2);
+  font-weight: var(--fw-medium);
+  letter-spacing: 0.02em;
+}
+
+.ios-subtitle {
+  color: var(--text-secondary);
+  font-size: var(--fs-subhead);
+  line-height: 1.5;
+}
+
+/* =====================================================================
+   Elevation surfaces
+   ===================================================================== */
+.ios-surface-1 {
+  background: var(--bg-elev-1);
+}
+
+.ios-surface-2 {
+  background: var(--bg-elev-2);
+}
+
+.ios-surface-3 {
+  background: var(--bg-elev-3);
+}
+
+.ios-card {
+  position: relative;
+  background: var(--glass-fill), var(--glass-bg);
+  backdrop-filter: var(--glass-blur);
+  border-radius: var(--r-card);
+  box-shadow: var(--glass-edge), var(--glass-shadow);
+}
+
+html:not(.dark) .ios-card {
+  box-shadow: var(--glass-edge), var(--glass-shadow);
+}
+
+.ios-card-pressed {
+  background: var(--grouped-card-pressed);
+}
+
+.ios-glass {
+  background: var(--glass-fill), var(--glass-bg);
+  backdrop-filter: var(--glass-blur);
+  box-shadow: var(--glass-edge), var(--glass-shadow);
+}
+
+/* =====================================================================
+   Segmented control (UISegmentedControl)
+   ===================================================================== */
+.ios-seg {
+  position: relative;
+  display: flex;
+  gap: 2px;
+  padding: 3px;
+  border-radius: 999px;
+  background: var(--glass-fill), var(--control-bg);
+  backdrop-filter: var(--glass-blur-soft);
+  box-shadow: var(--glass-edge);
+}
+
+.ios-seg-thumb {
+  position: absolute;
+  inset: 0;
+  border-radius: 999px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.26), rgba(255, 255, 255, 0.1)), var(--glass-lens);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.45), inset 0 0 0 0.5px rgba(255, 255, 255, 0.25),
+    0 6px 14px -6px rgba(0, 0, 0, 0.45);
+  z-index: 0;
+}
+
+html:not(.dark) .ios-seg-thumb {
+  background: #ffffff;
+  box-shadow: inset 0 1px 0 #fff, 0 6px 14px -6px rgba(40, 60, 130, 0.35), 0 0 0 0.5px rgba(60, 70, 120, 0.08);
+}
+
+.ios-seg-item {
+  position: relative;
+  z-index: 1;
+  flex: 1 1 0;
+  min-height: 36px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 0 8px;
+  font-size: var(--fs-footnote);
+  font-weight: var(--fw-medium);
+  color: var(--text-primary);
+  white-space: nowrap;
+  transition: opacity var(--dur-fast) var(--ease-standard);
+}
+
+/* Extend the segmented-control touch target to 44px */
+.ios-seg-item::after {
+  content: '';
+  position: absolute;
+  inset-block: -5px;
+  inset-inline: 0;
+}
+
+.ios-seg-item[data-active='false'] {
+  opacity: 0.62;
+}
+
+/* =====================================================================
+   Chips
+   ===================================================================== */
+.ios-chip {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 34px;
+  padding: 0 14px;
+  border-radius: var(--r-chip);
+  font-size: var(--fs-footnote);
+  font-weight: var(--fw-medium);
+  color: var(--text-primary);
+  background: var(--glass-fill), var(--fill-quaternary);
+  backdrop-filter: var(--glass-blur-soft);
+  box-shadow: var(--glass-edge);
+  white-space: nowrap;
+  transition: background var(--dur-fast) var(--ease-standard),
+    color var(--dur-fast) var(--ease-standard), box-shadow var(--dur-fast) var(--ease-standard);
+}
+
+/* Extend the touch target to the iOS minimum of 44px without changing layout */
+.ios-chip::after {
+  content: '';
+  position: absolute;
+  inset-block: -5px;
+  inset-inline: 0;
+}
+
+.ios-chip[data-tone='success'] {
+  background: var(--success-soft);
+  color: var(--success);
+}
+
+.ios-chip[data-tone='warning'] {
+  background: var(--warning-soft);
+  color: var(--warning);
+}
+
+.ios-chip[data-tone='danger'] {
+  background: var(--danger-soft);
+  color: var(--danger);
+}
+
+.ios-chip[data-tone='accent'] {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.ios-chip[data-active='true'] {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.28), rgba(255, 255, 255, 0) 55%), var(--accent);
+  color: var(--on-accent);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.45), 0 8px 18px -8px var(--accent);
+}
+
+/* =====================================================================
+   Grouped list rows
+   ===================================================================== */
+.ios-list {
+  position: relative;
+  background: var(--glass-fill), var(--glass-bg);
+  backdrop-filter: var(--glass-blur);
+  border-radius: var(--r-card);
+  box-shadow: var(--glass-edge), var(--glass-shadow);
+  overflow: hidden;
+}
+
+.ios-list-row {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  min-height: 48px;
+  padding: 11px 14px;
+  text-align: start;
+  background: transparent;
+  transition: background var(--dur-fast) var(--ease-standard);
+}
+
+.ios-list-row + .ios-list-row::before {
+  content: '';
+  position: absolute;
+  inset-block-start: 0;
+  inset-inline-start: 14px;
+  inset-inline-end: 0;
+  height: 0.5px;
+  background: var(--separator);
+}
+
+.ios-list-row:active {
+  background: var(--grouped-card-pressed);
+}
+
+.ios-row-title {
+  font-size: var(--fs-subhead);
+  font-weight: var(--fw-medium);
+  color: var(--text-primary);
+  line-height: 1.4;
+}
+
+.ios-row-subtitle {
+  font-size: var(--fs-footnote);
+  color: var(--text-secondary);
+  line-height: 1.45;
+}
+
+.ios-value {
+  font-size: var(--fs-subhead);
+  color: var(--text-secondary);
+}
+
+/* =====================================================================
+   Buttons
+   ===================================================================== */
+.ios-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 46px;
+  padding: 0 20px;
+  border-radius: 999px;
+  font-size: var(--fs-subhead);
+  font-weight: var(--fw-semibold);
+  transition: transform var(--dur-fast) var(--ease-ios),
+    background-color var(--dur-fast) var(--ease-standard),
+    opacity var(--dur-fast) var(--ease-standard);
+}
+
+.ios-btn:active {
+  transform: scale(0.97);
+  filter: brightness(0.94);
+}
+
+.ios-btn-primary {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.3), rgba(255, 255, 255, 0) 55%), var(--accent);
+  color: var(--on-accent);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.5), inset 0 0 0 0.5px rgba(255, 255, 255, 0.2),
+    0 10px 22px -10px var(--accent);
+}
+
+.ios-btn-secondary {
+  background: var(--glass-fill), var(--fill-quaternary);
+  backdrop-filter: var(--glass-blur-soft);
+  box-shadow: var(--glass-edge);
+  color: var(--accent);
+}
+
+.ios-btn-destructive {
+  background: var(--glass-fill), var(--danger-soft);
+  box-shadow: var(--glass-edge);
+  color: var(--danger);
+}
+
+.ios-btn-plain {
+  background: transparent;
+  color: var(--accent);
+}
+
+.ios-icon-button {
+  width: 44px;
+  height: 44px;
+  border-radius: var(--r-chip);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--glass-fill), var(--glass-bg);
+  backdrop-filter: var(--glass-blur);
+  box-shadow: var(--glass-edge), 0 8px 18px -10px rgba(0, 0, 0, 0.5);
+  color: var(--text-primary);
+  transition: transform var(--dur-fast) var(--ease-ios),
+    background-color var(--dur-fast) var(--ease-standard),
+    opacity var(--dur-fast) var(--ease-standard);
+}
+
+.ios-icon-button:active {
+  transform: scale(0.92);
+  opacity: 0.7;
+}
+
+/* =====================================================================
+   iOS switch
+   ===================================================================== */
+.ios-switch {
+  position: relative;
+  flex: none;
+  width: 51px;
+  height: 31px;
+  border-radius: var(--r-chip);
+  background: var(--control-track-off);
+  transition: background var(--dur-med) var(--ease-standard);
+}
+
+.ios-switch[data-on='true'] {
+  background: var(--control-track-on);
+}
+
+/* 44px tall hit area for a 31px switch */
+.ios-switch::after {
+  content: '';
+  position: absolute;
+  inset-block: -7px;
+  inset-inline: -4px;
+}
+
+.ios-switch-knob {
+  position: absolute;
+  top: 2px;
+  inset-inline-start: 2px;
+  width: 27px;
+  height: 27px;
+  border-radius: 50%;
+  background: #ffffff;
+  box-shadow: inset 0 -1px 0 rgba(0, 0, 0, 0.06), 0 4px 10px rgba(0, 0, 0, 0.28), 0 1px 1px rgba(0, 0, 0, 0.16);
+}
+
+/* =====================================================================
+   Text fields
+   ===================================================================== */
+/* width lives in a lower layer so Tailwind w-* utilities can override it */
+@layer components {
+  .ios-field {
+    width: 100%;
+  }
+}
+
+.ios-field {
+  min-height: 46px;
+  padding: 0 14px;
+  border-radius: var(--r-field);
+  background: var(--field-bg);
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.18), inset 0 0 0 0.5px var(--field-border);
+  border: 0;
+  color: var(--field-text);
+  transition: box-shadow var(--dur-fast) var(--ease-standard);
+}
+
+.ios-field::placeholder {
+  color: var(--text-tertiary);
+}
+
+.ios-field:focus {
+  outline: none;
+  box-shadow: inset 0 0 0 1px var(--accent), var(--focus-ring);
+}
+
+.ios-searchbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 42px;
+  padding: 0 14px;
+  border-radius: 999px;
+  background: var(--glass-fill), var(--glass-bg);
+  backdrop-filter: var(--glass-blur);
+  box-shadow: var(--glass-edge), 0 8px 18px -12px rgba(0, 0, 0, 0.5);
+  color: var(--text-secondary);
+}
+
+/* =====================================================================
+   Sheets
+   ===================================================================== */
+.ios-sheet {
+  background: var(--glass-fill), var(--glass-bg-strong);
+  backdrop-filter: blur(40px) saturate(200%);
+  box-shadow: var(--glass-edge), 0 -24px 60px -20px rgba(0, 0, 0, 0.65);
+  color: var(--text-primary);
+}
+
+html:not(.dark) .ios-sheet {
+  box-shadow: var(--glass-edge), 0 -24px 60px -24px rgba(40, 60, 130, 0.4);
+}
+
+.ios-sheet-handle {
+  width: 36px;
+  height: 5px;
+  border-radius: var(--r-chip);
+  margin: 5px auto 0;
+  background: var(--fill-secondary);
+}
+
+/* =====================================================================
+   Tab bar
+   ===================================================================== */
+.ios-tab-bar {
+  position: fixed;
+  inset-inline: 0;
+  bottom: calc(env(safe-area-inset-bottom, 0px) * 0.6 + 10px);
+  z-index: 50;
+  display: flex;
+  align-items: stretch;
+  gap: 0;
+  height: 66px;
+  padding: 5px;
+  margin: 0 auto;
+  width: calc(100% - 28px);
+  max-width: 402px;
+  border-radius: 999px;
+  background: var(--glass-fill), var(--tab-bar-bg);
+  backdrop-filter: blur(32px) saturate(210%) brightness(1.1);
+  box-shadow: var(--glass-edge), 0 24px 40px -18px rgba(0, 0, 0, 0.7), 0 4px 14px -4px rgba(0, 0, 0, 0.35);
+}
+
+html:not(.dark) .ios-tab-bar {
+  box-shadow: var(--glass-edge), 0 22px 40px -18px rgba(40, 60, 130, 0.45), 0 4px 14px -4px rgba(40, 60, 130, 0.15);
+}
+
+/* The sliding glass "lens" under the selected tab */
+.ios-tab-lens {
+  position: absolute;
+  inset: 0;
+  border-radius: 999px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.2), rgba(255, 255, 255, 0.04)), var(--glass-lens);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.4), inset 0 0 0 0.5px rgba(255, 255, 255, 0.22),
+    0 6px 14px -6px rgba(0, 0, 0, 0.4);
+}
+
+html:not(.dark) .ios-tab-lens {
+  background: #ffffff;
+  box-shadow: inset 0 1px 0 #fff, 0 6px 16px -6px rgba(40, 60, 130, 0.35);
+}
+
+.ios-tab-item {
+  flex: 1 1 0;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  gap: 3px;
+  border-radius: 999px;
+  color: var(--tab-label);
+  transition: transform var(--dur-fast) var(--ease-standard),
+    color var(--dur-fast) var(--ease-standard);
+}
+
+.ios-tab-item:active {
+  transform: scale(0.95);
+}
+
+.ios-tab-item[data-active='true'] {
+  color: var(--tab-label-active);
+}
+
+.ios-tab-label {
+  position: relative;
+  font-size: 10px;
+  line-height: 1.2;
+  font-weight: var(--fw-medium);
+  white-space: nowrap;
+}
+
+.ios-tab-item[data-active='true'] .ios-tab-label {
+  font-weight: var(--fw-semibold);
+}
+
+.ios-tab-badge {
+  position: absolute;
+  top: -8px;
+  inset-inline-end: -16px;
+  min-width: 17px;
+  height: 17px;
+  padding: 0 4px;
+  border-radius: var(--r-chip);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--danger);
+  color: #fff;
+  font-size: 10px;
+  font-weight: var(--fw-bold);
+  line-height: 1;
+  box-shadow: 0 0 0 1.5px rgba(20, 22, 36, 0.9), 0 3px 8px -2px var(--danger);
+}
+
+/* =====================================================================
+   Swipeable grouped rows
+   ===================================================================== */
+.ios-swipe-row {
+  position: relative;
+  overflow: hidden;
+}
+
+.ios-swipe-row + .ios-swipe-row::before {
+  content: '';
+  position: absolute;
+  inset-block-start: 0;
+  inset-inline-start: 68px;
+  inset-inline-end: 0;
+  height: 0.5px;
+  background: var(--separator);
+  z-index: 3;
+  pointer-events: none;
+}
+
+.ios-swipe-bg {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  transition: opacity var(--dur-fast) var(--ease-standard);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-inline: 18px;
+}
+
+.ios-swipe-row[data-dragging='true'] .ios-swipe-bg {
+  opacity: 1;
+}
+
+.ios-swipe-action {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: var(--fw-semibold);
+  transition: opacity var(--dur-fast) var(--ease-standard),
+    transform var(--dur-fast) var(--ease-standard);
+}
+
+.ios-unread-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--accent);
+  flex: none;
+}
+
+/* Sticky search bar under the nav bar */
+.ios-sticky-bar {
+  position: sticky;
+  top: 0;
+  z-index: 30;
+  margin-inline: -16px;
+  padding-inline: 16px;
+  background: color-mix(in srgb, var(--bg-base) 55%, transparent);
+  backdrop-filter: blur(24px) saturate(180%);
+}
+
+/* =====================================================================
+   Misc
+   ===================================================================== */
+.ios-divider {
+  height: 0.5px;
+  background: var(--separator);
+}
+
+.ios-skeleton {
+  background: linear-gradient(
+    100deg,
+    var(--skeleton-base) 20%,
+    var(--skeleton-highlight) 40%,
+    var(--skeleton-base) 60%
+  );
+  background-size: 220% 100%;
+  animation: ios-shimmer 1.6s ease-in-out infinite;
+}
+
+@keyframes ios-shimmer {
+  from {
+    background-position: 180% 0;
+  }
+  to {
+    background-position: -40% 0;
+  }
+}
+
+.ios-readable {
+  font-size: var(--fs-subhead);
+  line-height: var(--lh-body);
+  color: var(--text-primary);
+  overflow-wrap: anywhere;
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.snap-x {
+  scroll-snap-type: x mandatory;
+  -webkit-overflow-scrolling: touch;
+}
+
+.snap-start {
+  scroll-snap-align: start;
+}
+
+/* Touch feedback for every tappable element */
+.ios-press {
+  transition: transform var(--dur-fast) var(--ease-standard),
+    opacity var(--dur-fast) var(--ease-standard),
+    background-color var(--dur-fast) var(--ease-standard);
+}
+
+.ios-press:active {
+  transform: scale(0.97);
+}
+
+.ios-press-sm:active {
+  transform: scale(0.94);
+}
+
+/* =====================================================================
+   Light-mode legibility remap for legacy slate/cyan utility classes
+   ===================================================================== */
+html:not(.dark) [class*='text-slate-100'],
+html:not(.dark) [class*='text-slate-200'],
+html:not(.dark) [class*='text-slate-300'] {
+  color: #334155;
+}
+
+html:not(.dark) [class*='text-slate-400'] {
+  color: #64748b;
+}
+
+html:not(.dark) [class*='text-cyan-50'],
+html:not(.dark) [class*='text-cyan-100'],
+html:not(.dark) [class*='text-cyan-200'],
+html:not(.dark) [class*='text-cyan-300'] {
+  color: #0e7490;
+}
+
+html:not(.dark) [class*='text-emerald-100'],
+html:not(.dark) [class*='text-emerald-200'],
+html:not(.dark) [class*='text-emerald-300'] {
+  color: #047857;
+}
+
+html:not(.dark) [class*='text-teal-200'],
+html:not(.dark) [class*='text-teal-300'] {
+  color: #0f766e;
+}
+
+html:not(.dark) [class*='text-amber-100'],
+html:not(.dark) [class*='text-amber-200'],
+html:not(.dark) [class*='text-amber-300'] {
+  color: #b45309;
+}
+
+html:not(.dark) [class*='text-yellow-200'],
+html:not(.dark) [class*='text-yellow-300'] {
+  color: #a16207;
+}
+
+html:not(.dark) [class*='text-violet-100'],
+html:not(.dark) [class*='text-violet-200'],
+html:not(.dark) [class*='text-violet-300'] {
+  color: #6d28d9;
+}
+
+html:not(.dark) [class*='text-indigo-100'],
+html:not(.dark) [class*='text-indigo-200'],
+html:not(.dark) [class*='text-indigo-300'] {
+  color: #4338ca;
+}
+
+html:not(.dark) [class*='text-sky-100'],
+html:not(.dark) [class*='text-sky-200'],
+html:not(.dark) [class*='text-sky-300'] {
+  color: #0369a1;
+}
+
+html:not(.dark) [class*='text-rose-100'],
+html:not(.dark) [class*='text-rose-200'],
+html:not(.dark) [class*='text-rose-300'] {
+  color: #be123c;
+}
+
+html:not(.dark) [class*='text-orange-100'],
+html:not(.dark) [class*='text-orange-200'],
+html:not(.dark) [class*='text-orange-300'] {
+  color: #c2410c;
+}
+
+html:not(.dark) [class*='text-blue-200'],
+html:not(.dark) [class*='text-blue-300'] {
+  color: #1d4ed8;
+}
+
+/* =====================================================================
+   Splash / launch
+   ===================================================================== */
+.ios-splash {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 18px;
+  background: radial-gradient(90% 50% at 50% 38%, var(--orb-1), transparent 75%), var(--bg-base);
+}
+
+.ios-splash-mark {
+  width: 76px;
+  height: 76px;
+  border-radius: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(160deg, var(--accent) 0%, var(--accent-deep) 100%);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.5), 0 18px 40px -14px var(--accent);
+}
+
+.ios-splash-title {
+  font-size: var(--fs-subhead);
+  font-weight: var(--fw-semibold);
+  color: var(--text-secondary);
+}
+
+/* =====================================================================
+   Motion accessibility
+   ===================================================================== */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* =====================================================================
+   LIQUID GLASS 2.0 — iOS 26 redesign layer
+   Vivid ambient light + specular rims + lensing on every glass surface.
+   ===================================================================== */
+html.dark {
+  --lg-tint: rgba(255, 255, 255, 0.06);
+  --lg-rim: linear-gradient(160deg, rgba(255,255,255,0.75) 0%, rgba(255,255,255,0.12) 28%, rgba(255,255,255,0.02) 55%, rgba(255,255,255,0.18) 85%, rgba(255,255,255,0.5) 100%);
+  --lg-sheen: radial-gradient(120% 60% at 30% -10%, rgba(255,255,255,0.22), transparent 55%);
+  --lg-blur: blur(22px) saturate(220%) brightness(1.12) contrast(1.05);
+  --lg-shadow: 0 30px 60px -30px rgba(0,0,0,0.9), 0 10px 22px -12px rgba(0,0,0,0.55);
+  --orb-1: rgba(236, 72, 153, 0.55);
+  --orb-2: rgba(99, 102, 241, 0.5);
+  --orb-3: rgba(6, 182, 212, 0.42);
+  --orb-4: rgba(34, 211, 238, 0.3);
+  --bg-base: #03060d;
+  --glass-bg: rgba(28, 32, 52, 0.32);
+  --tab-bar-bg: rgba(30, 34, 56, 0.28);
+  --tab-label-active: #ffffff;
+}
+html:not(.dark) {
+  --lg-tint: rgba(255, 255, 255, 0.4);
+  --lg-rim: linear-gradient(160deg, rgba(255,255,255,1) 0%, rgba(255,255,255,0.4) 30%, rgba(255,255,255,0.1) 60%, rgba(255,255,255,0.8) 100%);
+  --lg-shadow: 0 26px 50px -28px rgba(40,60,130,0.45), 0 8px 18px -10px rgba(40,60,130,0.2);
+  --orb-1: rgba(255, 120, 190, 0.45);
+  --orb-2: rgba(120, 140, 255, 0.4);
+  --orb-3: rgba(60, 210, 230, 0.38);
+  --orb-4: rgba(255, 190, 120, 0.3);
+  --glass-bg: rgba(255, 255, 255, 0.42);
+  --tab-bar-bg: rgba(255, 255, 255, 0.45);
+  --tab-label-active: var(--accent);
+}
+.app-viewport[data-tab='jobs'] { --orb-1: rgba(16, 185, 129, 0.5); --orb-2: rgba(20, 184, 166, 0.4); }
+.app-viewport[data-tab='search'] { --orb-1: rgba(59, 130, 246, 0.55); --orb-2: rgba(168, 85, 247, 0.35); }
+.app-viewport[data-tab='saved'] { --orb-1: rgba(245, 158, 11, 0.45); --orb-2: rgba(236, 72, 153, 0.38); }
+.app-viewport[data-tab='settings'] { --orb-1: rgba(148, 163, 184, 0.4); --orb-2: rgba(99, 102, 241, 0.38); }
+
+.app-bg::before { filter: blur(40px); transition: background 0.8s var(--ease-ios); }
+.app-bg::after { filter: blur(60px); opacity: 0.85; }
+
+/* Shared liquid glass material */
+.ios-card,
+.ios-glass,
+.ios-tab-bar,
+.ios-sheet,
+.ios-seg,
+.ios-searchbar,
+.ios-list,
+.ios-icon-button,
+.ios-nav-bar.is-scrolled {
+  background: var(--lg-sheen), var(--lg-tint), var(--glass-bg) !important;
+  backdrop-filter: var(--lg-blur) !important;
+  box-shadow: inset 0 1px 1px rgba(255,255,255,0.35), inset 0 -1px 1px rgba(255,255,255,0.08), var(--lg-shadow) !important;
+  isolation: isolate;
+}
+.ios-card, .ios-glass, .ios-tab-bar, .ios-sheet, .ios-seg, .ios-searchbar, .ios-list, .ios-icon-button { position: relative; }
+
+/* Specular rim — a gradient hairline that catches the light */
+.ios-card::before,
+.ios-glass::before,
+.ios-tab-bar::before,
+.ios-sheet::before,
+.ios-seg::before,
+.ios-searchbar::before,
+.ios-list::before,
+.ios-icon-button::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 1px;
+  background: var(--lg-rim);
+  mask: linear-gradient(#000 0 0) content-box exclude, linear-gradient(#000 0 0);
+  pointer-events: none;
+  z-index: 2;
+}
+
+/* Floating dock: thicker, lensed */
+.ios-tab-bar {
+  height: 68px;
+  bottom: calc(env(safe-area-inset-bottom, 0px) * 0.6 + 14px);
+  width: calc(100% - 32px);
+}
+@supports (backdrop-filter: url(#lg-refract)) {
+  .ios-tab-bar { backdrop-filter: url(#lg-refract) var(--lg-blur) !important; }
+}
+.ios-tab-lens {
+  background: radial-gradient(90% 70% at 50% 0%, rgba(255,255,255,0.4), rgba(255,255,255,0.06) 70%), var(--glass-lens) !important;
+  box-shadow: inset 0 1px 1px rgba(255,255,255,0.7), inset 0 -2px 6px rgba(255,255,255,0.12), 0 8px 20px -8px rgba(0,0,0,0.5) !important;
+}
+html:not(.dark) .ios-tab-lens { background: radial-gradient(90% 70% at 50% 0%, #fff, rgba(255,255,255,0.7)) !important; }
+
+.ios-seg-thumb {
+  background: radial-gradient(90% 80% at 50% 0%, rgba(255,255,255,0.42), rgba(255,255,255,0.08) 75%) !important;
+  box-shadow: inset 0 1px 1px rgba(255,255,255,0.7), 0 6px 14px -6px rgba(0,0,0,0.45) !important;
+}
+
+/* Glossy primary button */
+.ios-btn-primary {
+  background: radial-gradient(120% 90% at 50% -20%, rgba(255,255,255,0.45), transparent 55%), var(--accent) !important;
+  box-shadow: inset 0 1px 1px rgba(255,255,255,0.55), 0 10px 24px -10px var(--accent) !important;
+}
+
+/* Spring press on everything tappable */
+.ios-card, .ios-chip, .ios-btn, .ios-icon-button, .ios-press {
+  transition: transform 0.35s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.3s ease;
+}
+.ios-card:active, .ios-chip:active, .ios-icon-button:active { transform: scale(0.97); }
+
+.ios-chip[data-active='true'] {
+  box-shadow: inset 0 1px 1px rgba(255,255,255,0.5), 0 6px 16px -8px var(--accent);
+}
+.ios-large-title { letter-spacing: -0.02em; text-shadow: 0 2px 24px rgba(0,0,0,0.25); }
+
+@media (prefers-reduced-transparency: reduce) {
+  .ios-card, .ios-glass, .ios-tab-bar, .ios-sheet { backdrop-filter: none !important; background: var(--bg-elev-2) !important; }
+}
+
+/* =====================================================================
+   MINIMAL override — neutral, near-monochrome liquid glass
+   ===================================================================== */
+html.dark, .app-viewport[data-tab] {
+  --orb-1: rgba(255, 255, 255, 0.06);
+  --orb-2: rgba(255, 255, 255, 0.035);
+  --orb-3: rgba(255, 255, 255, 0.025);
+  --orb-4: rgba(255, 255, 255, 0.02);
+}
+html.dark { --bg-base: #000000; --glass-bg: rgba(255, 255, 255, 0.05); --tab-bar-bg: rgba(255, 255, 255, 0.06); --glass-lens: rgba(255,255,255,0.08); }
+html:not(.dark), html:not(.dark) .app-viewport[data-tab] {
+  --orb-1: rgba(0, 0, 0, 0.03);
+  --orb-2: rgba(0, 0, 0, 0.02);
+  --orb-3: rgba(0, 0, 0, 0.015);
+  --orb-4: rgba(0, 0, 0, 0.01);
+  --bg-base: #f2f2f7;
+  --glass-bg: rgba(255, 255, 255, 0.6);
+}
+.app-bg::before, .app-bg::after { animation: none; }
+:root, html.dark {
+  --lg-sheen: radial-gradient(120% 60% at 30% -10%, rgba(255,255,255,0.08), transparent 55%);
+  --lg-rim: linear-gradient(160deg, rgba(255,255,255,0.35), rgba(255,255,255,0.05) 40%, rgba(255,255,255,0.03) 70%, rgba(255,255,255,0.15));
+  --lg-blur: blur(24px) saturate(140%);
+  --lg-shadow: 0 16px 36px -24px rgba(0,0,0,0.8);
+}
+html:not(.dark) {
+  --lg-sheen: none;
+  --lg-rim: linear-gradient(160deg, rgba(255,255,255,1), rgba(0,0,0,0.04) 50%, rgba(255,255,255,0.8));
+  --lg-shadow: 0 12px 30px -22px rgba(0,0,0,0.25);
+}
+.ios-btn-primary { background: var(--accent) !important; box-shadow: none !important; }
+.ios-chip[data-active='true'] { box-shadow: none; }
+.ios-large-title { text-shadow: none; }
+
+/* ---------------------------------------------------------------------
+   Cards & chips: flat neutral glass, hairline edge, very soft shadow
+   --------------------------------------------------------------------- */
+:root, html.dark {
+  --card-bg: rgba(255, 255, 255, 0.045);
+  --card-blur: blur(20px) saturate(120%);
+  --card-edge: inset 0 0 0 0.5px rgba(255, 255, 255, 0.09);
+  --card-shadow: 0 2px 12px -8px rgba(0, 0, 0, 0.55);
+  --card-rim: linear-gradient(160deg, rgba(255,255,255,0.16), rgba(255,255,255,0.02) 45%, rgba(255,255,255,0.05));
+}
+html:not(.dark) {
+  --card-bg: rgba(255, 255, 255, 0.78);
+  --card-blur: blur(20px) saturate(130%);
+  --card-edge: inset 0 0 0 0.5px rgba(255, 255, 255, 0.9);
+  --card-shadow: 0 2px 12px -8px rgba(0, 0, 0, 0.14);
+  --card-rim: linear-gradient(160deg, rgba(255,255,255,1), rgba(255,255,255,0.3) 50%, rgba(255,255,255,0.75));
+}
+
+.ios-card {
+  background: var(--card-bg) !important;
+  backdrop-filter: var(--card-blur) !important;
+  box-shadow: var(--card-edge), var(--card-shadow) !important;
+}
+.ios-card::before { background: var(--card-rim) !important; }
+
+.ios-chip {
+  background: var(--fill-quaternary);
+  backdrop-filter: none;
+  box-shadow: none;
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  .ios-card { background: var(--bg-elev-2) !important; backdrop-filter: none !important; }
+}
+
